@@ -128,4 +128,5 @@ dmypy.json
 # Pyre type checker
 .pyre/
 
-new
+new.py
+new.py
