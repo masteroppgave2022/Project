@@ -9,7 +9,7 @@ Download object, prompting user for download settings.
 TODO: Finish DOCSTRING
 TODO: requestDownload.modify_search()
 TODO: Dually accessible directory for data storage
-TODO: ROI input method
+TODO: ROI input method`
 """
 
 class requestDownload():

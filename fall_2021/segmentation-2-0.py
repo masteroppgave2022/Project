@@ -18,8 +18,8 @@ import cv2
 from keras.callbacks import ModelCheckpoint
 from tensorflow.keras.optimizers import Adam
 
-EPOCHS1=5 #30
-EPOCHS2=3 #15
+EPOCHS1=7 #30
+EPOCHS2=5 #15
 BATCH_SIZE=10
 HEIGHT=64
 WIDTH=64
@@ -122,7 +122,7 @@ if __name__ == '__main__':
 
     model.summary()
 
-    tf.keras.utils.plot_model(model, show_shapes=True, to_file='modelU-2-0.png')
+    #tf.keras.utils.plot_model(model, show_shapes=True, to_file='modelU-2-0.png')
 
     ############################################# Training
 
@@ -221,3 +221,5 @@ if __name__ == '__main__':
     """
     https://www.kaggle.com/ashishsingh226/semantic-segmentation-cityscapes
     """
+
+
