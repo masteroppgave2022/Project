@@ -127,7 +127,7 @@ class requestDownload(searchConstants):
         metadata = results.geojson()
         print(f"Downloading the following results:\n{metadata}")
         results.download(
-            path='S1_lvl1_products/', # Temporary
+            path='unprocessed_downloads/', # Temporary
             session=self.session,
             processes=2 # May be able to increase this?
         )
