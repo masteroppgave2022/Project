@@ -19,12 +19,12 @@ from snappy import GPF
 import shapefile 
 import pygeoif
 
-class preprocess():
+class Preprocess():
     def __init__(self, path_to_data="downloads") -> None:
         self.path_to_data = path_to_data
 
-    def read_product(self):
-        product = ProductIO.readProduct(self.path_to_data)
+    def read_product(self, name):
+        product = ProductIO.readProduct(self.path_to_data+name)
         return product
 
     def get_product_info(self, product) -> dict:
@@ -32,17 +32,18 @@ class preprocess():
         height = product.getSceneRasterHeight()
         name = product.getName()
         band_names = product.getBandNames()
+        print("Band names: {}".format(", ".join(band_names)))
 
         info = {
             "width": width,
             "height": height,
             "name": name,
-            "band_names": band_names
+            "band_names": "{}".format(", ".join(band_names))
         }
 
         return info
 
-    def plotBand(product, band, figname=None, vmin, vmax):
+    def plotBand(self, product, band, vmin, vmax, figname=None):
         band = product.getBand(band) 
         w = band.getRasterWidth()
         h = band.getRasterHeight() 
@@ -101,9 +102,9 @@ class preprocess():
         return product_subset
 
     def calibrate(self, product):
-    """
-    TODO: change to correct band and polarisation
-    """
+        """
+        TODO: change to correct band and polarisation
+        """
         parameters = HashMap() 
         parameters.put('outputSigmaBand', True) 
         parameters.put('sourceBands', 'Intensity_VV') 
@@ -137,12 +138,39 @@ class preprocess():
 
     def terrain_correction(self, product):
         """
-        TODO: check values
+        TODO: check 
         """
         parameters = HashMap() 
-        parameters.put('demName', 'SRTM 3Sec') 
+        parameters.put('demResamplingMethod', 'BILINEAR_INTERPOLATION') 
+        parameters.put('imgResamplingMethod', 'BILINEAR_INTERPOLATION')
+        parameters.put('demName', 'GETASSE30') #ASTER 1Sec GDEM SRTM 3Sec
         parameters.put('pixelSpacingInMeter', 10.0) 
         parameters.put('sourceBands', 'Sigma0_VV')
         terrain_corrected = GPF.createProduct("Terrain-Correction", parameters, product)
 
         return terrain_corrected
+
+if __name__=='__main__':
+    """ Just for testing purposes: """
+    prosess = Preprocess()
+    
+    product = prosess.read_product("/S1B_IW_GRDH_1SDV_20200910T060300_20200910T060325_023309_02C443_0BCF.zip")
+
+    info = prosess.get_product_info(product)
+
+    print(info)
+    prosess.plotBand(product, "Intensity_VV", 0, 100000, "testimage.png")
+
+    product = prosess.apply_orbit_file(product)
+    prosess.plotBand(product, "Intensity_VV", 0, 100000, "testimage_orbit.png")
+    
+    product = prosess.calibrate(product)
+    prosess.plotBand(product, "Sigma0_VV", 0, 1, "testimage_calibrate.png")
+
+    product = prosess.speckle_filter(product)
+    prosess.plotBand(product, "Sigma0_VV", 0, 1, "testimage_speckle.png")
+
+    product = prosess.terrain_correction(product)
+    prosess.plotBand(product, "Sigma0_VV", 0, 0.1, "testimage_terraincorrected.png")
+
+    
