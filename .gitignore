@@ -137,3 +137,4 @@ island_boundary
 fall_2021/segmentation_model_sat-2-5
 fall_2021/seg_model_sat-2-5.hdf5
 data/downloaded_lvl1_rasters
+data/unprocessed_downloads/

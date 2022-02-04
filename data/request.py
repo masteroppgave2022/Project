@@ -127,7 +127,7 @@ class requestDownload(searchConstants):
         metadata = results.geojson()
         print(f"Downloading the following results:\n{metadata}")
         results.download(
-            path='unprocessed_downloads/', # Temporary
+            path='data/unprocessed_downloads/', # Temporary
             session=self.session,
             processes=2 # May be able to increase this?
         )
@@ -135,6 +135,6 @@ class requestDownload(searchConstants):
 
 if __name__=='__main__':
     """ Just for testing purposes: """
-    request = requestDownload("mikaelvagen", "Drage127", search_config="search_config.cfg")
+    request = requestDownload("mikaelvagen", "Masteroppgave2022", search_config="search_config.cfg")
 
     
