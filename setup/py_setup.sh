@@ -14,7 +14,8 @@ PACKAGES=(
     "asf_search" 
     "geopandas" 
     "pyshp" 
-    "shapely")
+    "shapely"
+    "pygeoif")
 
 PREFIX="python -m pip install "
 
