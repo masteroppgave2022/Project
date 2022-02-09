@@ -20,7 +20,7 @@ import shapefile
 import pygeoif
 
 class Preprocess():
-    def __init__(self, path_to_data="downloads") -> None:
+    def __init__(self, path_to_data) -> None:
         self.path_to_data = path_to_data
 
     def read_product(self, name):
@@ -152,25 +152,25 @@ class Preprocess():
 
 if __name__=='__main__':
     """ Just for testing purposes: """
-    prosess = Preprocess()
+    prosess = Preprocess("data/unprocessed_downloads/")
     
-    product = prosess.read_product("/S1B_IW_GRDH_1SDV_20200910T060300_20200910T060325_023309_02C443_0BCF.zip")
+    product = prosess.read_product("S1A_IW_GRDH_1SDV_20210628T053856_20210628T053921_038536_048C2D_153C.zip")
 
     info = prosess.get_product_info(product)
 
     print(info)
     prosess.plotBand(product, "Intensity_VV", 0, 100000, "testimage.png")
 
-    product = prosess.apply_orbit_file(product)
-    prosess.plotBand(product, "Intensity_VV", 0, 100000, "testimage_orbit.png")
+    # product = prosess.apply_orbit_file(product)
+    # prosess.plotBand(product, "Intensity_VV", 0, 100000, "testimage_orbit.png")
     
-    product = prosess.calibrate(product)
-    prosess.plotBand(product, "Sigma0_VV", 0, 1, "testimage_calibrate.png")
+    # product = prosess.calibrate(product)
+    # prosess.plotBand(product, "Sigma0_VV", 0, 1, "testimage_calibrate.png")
 
-    product = prosess.speckle_filter(product)
-    prosess.plotBand(product, "Sigma0_VV", 0, 1, "testimage_speckle.png")
+    # product = prosess.speckle_filter(product)
+    # prosess.plotBand(product, "Sigma0_VV", 0, 1, "testimage_speckle.png")
 
-    product = prosess.terrain_correction(product)
-    prosess.plotBand(product, "Sigma0_VV", 0, 0.1, "testimage_terraincorrected.png")
+    # product = prosess.terrain_correction(product)
+    # prosess.plotBand(product, "Sigma0_VV", 0, 0.1, "testimage_terraincorrected.png")
 
     
