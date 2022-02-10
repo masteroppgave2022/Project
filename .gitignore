@@ -138,3 +138,5 @@ fall_2021/segmentation_model_sat-2-5
 fall_2021/seg_model_sat-2-5.hdf5
 data/downloaded_lvl1_rasters
 data/unprocessed_downloads/
+
+data/S1B_IW_GRDH_1SDV_20200910T060300_20200910T060325_023309_02C443_0BCF.zip
