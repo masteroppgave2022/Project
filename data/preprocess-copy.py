@@ -217,13 +217,24 @@ if __name__=='__main__':
     product = prosess.speckle_filter(product)
     prosess.plotBand(product, "Beta0_VV", 0, 1, "testimage_speckle2.png")
 
+    info = prosess.get_product_info(product)
+
+    print(info)
+
     #product = prosess.terrain_flattening(product)
     #prosess.plotBand(product, "Gamma0_VV", 0, 0.1, "testimage_terrainflattened2.png")
 
     product = prosess.terrain_correction(product)
-    prosess.plotBand(product, "Gamma0_VV", 0, 0.1, "testimage_terraincorrected2.png")
+    prosess.plotBand(product, "Beta0_VV", 0, 0.1, "testimage_terraincorrected2.png")
+
+    info = prosess.get_product_info(product)
+
+    print(info)
+
+    subset = prosess.add_shape_file(product,"shapefiles/molde2/mol2.shp")
+    prosess.plotBand(subset, "Beta0_VV", 0, 0.1, "subset222.png")
 
     subset = prosess.add_shape_file(product,"shapefiles/molde/molde.shp")
-    prosess.plotBand(subset, "Gamma0_VV", 0, 0.1, "subset22.png")
+    prosess.plotBand(subset, "Beta0_VV", 0, 0.1, "subset22.png")
 
     
