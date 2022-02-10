@@ -105,6 +105,13 @@ class Preprocess():
         product_subset = snappy.GPF.createProduct('Subset', parameters, product)
         return product_subset
 
+    def apply_thermal_noise_removal(self, product):
+        print('\nthermal noise removal...')
+        parameters = HashMap()
+        parameters.put('removeThermalNoise', True)
+        output = GPF.createProduct('ThermalNoiseRemoval', parameters, product)
+        return output
+
     def calibrate(self, product):
         """
         TODO: change to correct band and polarisation
@@ -129,7 +136,7 @@ class Preprocess():
         parameters.put('nRgLooks', rgLooks)
         parameters.put('nAzLooks', azLooks)
         parameters.put('outputIntensity', False)
-        product_multilooked = GPF.createProduct("Multilook", parameters, product)
+        product_multilooked = snappy.GPF.createProduct("Multilook", parameters, product)
         return product_multilooked
 
 
@@ -200,15 +207,18 @@ if __name__=='__main__':
 
     product = prosess.apply_orbit_file(product)
     prosess.plotBand(product, "Intensity_VV", 0, 100000, "testimage_orbit2.png")
-    
+
+    product = prosess.apply_thermal_noise_removal(product)
+    prosess.plotBand(product, "Intensity_VV", 0, 100000, "testimage_thermalnoise2.png")
+
     product = prosess.calibrate(product)
     prosess.plotBand(product, "Beta0_VV", 0, 1, "testimage_calibrate2.png")
 
     product = prosess.speckle_filter(product)
     prosess.plotBand(product, "Beta0_VV", 0, 1, "testimage_speckle2.png")
 
-    product = prosess.terrain_flattening(product)
-    prosess.plotBand(product, "Gamma0_VV", 0, 0.1, "testimage_terrainflattened2.png")
+    #product = prosess.terrain_flattening(product)
+    #prosess.plotBand(product, "Gamma0_VV", 0, 0.1, "testimage_terrainflattened2.png")
 
     product = prosess.terrain_correction(product)
     prosess.plotBand(product, "Gamma0_VV", 0, 0.1, "testimage_terraincorrected2.png")
