@@ -4,7 +4,7 @@ based on http://step.esa.int/docs/tutorials/Performing%20SAR%20processing%20in%2
 import numpy as np
 import pandas as pd
 import matplotlib
-# matplotlib.use("TkAgg")
+matplotlib.use("Qt5Agg")
 import matplotlib.pyplot as plt 
 import matplotlib.colors as colors 
 import os
@@ -47,24 +47,32 @@ class Preprocess():
         subset = snappy.GPF.createProduct('Subset', parameters, product)
         return subset
 
-    def plot_band(self, product, band, vmin, vmax, save_path=None):
-        band = product.getBand(band) 
-        w = band.getRasterWidth()
-        h = band.getRasterHeight() 
-        band_data = np.zeros(w * h, np.float32) 
-        band.readPixels(0, 0, w, h, band_data)
-        print(max(band_data))
-        print(min(band_data))
-        band_data.shape = h, w
-        plt.figure(figsize=(12, 12))
-        imgplot = plt.imshow(band_data, cmap=plt.cm.binary, vmin=vmin, vmax=vmax)
-        # plt.imshow(band_data, cmap=plt.cm.binary, vmin=vmin, vmax=vmax)
-        if plt.figimage != None:
-            plt.savefig(save_path)
-        else:
-            plt.show(imgplot)
+    def plot_band(self, product_1, product_2, band, vmin, vmax, save_path=None):
+        band_1 = product_1.getBand(band) 
+        w = band_1.getRasterWidth()
+        h = band_1.getRasterHeight() 
+        band_data_1 = np.zeros(w * h, np.float32) 
+        band_1.readPixels(0, 0, w, h, band_data_1)
+        band_data_1.shape = h, w
 
-        return imgplot
+        band_2 = product_2.getBand(band) 
+        w = band_2.getRasterWidth()
+        h = band_2.getRasterHeight() 
+        band_data_2 = np.zeros(w * h, np.float32) 
+        band_2.readPixels(0, 0, w, h, band_data_2)
+        band_data_2.shape = h, w
+
+        fig, (ax1,ax2) = plt.subplots(1,2)
+        # imgplot = plt.imshow(band_data, cmap=plt.cm.binary, vmin=vmin, vmax=vmax)
+        ax1.set_title('Original')
+        ax1.imshow(band_data_1, cmap=plt.cm.binary_r, vmin=vmin, vmax=vmax)
+        ax2.set_title('Frost')
+        ax2.imshow(band_data_2, cmap=plt.cm.binary_r, vmin=vmin, vmax=vmax)
+        plt.show()
+        # if save_path:
+        #     plt.savefig(save_path)
+        # else:
+        #     plt.show(imgplot)
 
     def apply_orbit_file(self, product):
         parameters = snappy.HashMap() 
@@ -124,7 +132,7 @@ class Preprocess():
         """
         parameters = snappy.HashMap()
         # parameters.put('sourceBands', 'Sigma0_VH') 
-        parameters.put('filter', 'Lee Sigma') # Lee filters are edge-preserving, so probably worth keeping, testing with Lee Sigma
+        parameters.put('filter', 'Frost') # Lee filters are edge-preserving, so probably worth keeping, testing with Lee Sigma
         parameters.put('filterSizeX', 5) 
         parameters.put('filterSizeY', 5) 
         # parameters.put('dampingFactor', '2') 
@@ -134,16 +142,18 @@ class Preprocess():
         # parameters.put('targetWindowSizeStr', '3x3') 
         # parameters.put('sigmaStr', '0.9') 
         # parameters.put('anSize', '50')
-        speckle_filter = snappy.GPF.createProduct('Speckle-Filter', parameters, product)
+        speckle_filter_frost = snappy.GPF.createProduct('Speckle-Filter', parameters, product)
+        parameters.put('filter', 'Lee Sigma')
+        speckle_filter_lee = snappy.GPF.createProduct('Speckle-Filter', parameters, product)
 
-        return speckle_filter
+        return speckle_filter_frost, speckle_filter_lee
 
     def terrain_correction(self, product):
         """
         TODO: check 
         """
         parameters = snappy.HashMap() 
-        parameters.put('demName', 'SRTM 3Sec')
+        parameters.put('demName', 'GETASSE30')
         parameters.put('imgResamplingMethod', 'BILINEAR_INTERPOLATION')
         parameters.put('demResamplingMethod', 'BILINEAR_INTERPOLATION') 
         parameters.put('pixelSpacingInMeter', 10.0) 
@@ -158,20 +168,28 @@ if __name__=='__main__':
     """ Just for testing purposes: """
     process = Preprocess('/localhome/studenter/mikaellv/Project/data/unprocessed_downloads/')
 
+    # Reading product:
     product = process.read_product('S1B_IW_GRDH_1SDV_20200627T053825_20200627T053850_022215_02A297_D3A3.zip')
     product_info = process.get_product_info(product)
+    # Creating subset:
     subset_product = process.create_subset(product,21000,0,1000,1500)
     subset_info = process.get_product_info(subset_product)
+    # Orbit corrections:
     orbit_corrected_product = process.apply_orbit_file(subset_product)
+    # Thermal noise removal:
     therm_noise_removed_product = process.thermal_noise_removal(orbit_corrected_product)
+    # Radiometric calibration:
     rm_calibrated_product = process.calibrate(therm_noise_removed_product)
-    filtered_product = process.speckle_filter(rm_calibrated_product)
-    terrain_corrected_product = process.terrain_correction(filtered_product)
+    # Speckle filtering:
+    filtered_product_frost, filtered_product_lee = process.speckle_filter(rm_calibrated_product)
+    # Terrain correction:
+    terrain_corrected_product_lee = process.terrain_correction(rm_calibrated_product)
+    terrain_corrected_product_frost = process.terrain_correction(filtered_product_frost)
 
     # Write GTiff to file:
-    out_path = '/localhome/studenter/mikaellv/Project/data/processed_plots/Final_VH'
-    snappy.ProductIO.writeProduct(terrain_corrected_product,out_path,'GeoTIFF')
+    # out_path = '/localhome/studenter/mikaellv/Project/data/processed_plots/Final_VH_No_Speckle'
+    # snappy.ProductIO.writeProduct(terrain_corrected_product,out_path,'GeoTIFF')
 
-    process.plot_band(terrain_corrected_product,'Sigma0_VH',0,0.04,save_path='/localhome/studenter/mikaellv/Project/data/processed_plots/Final_VH.png')
+    process.plot_band(terrain_corrected_product_lee, terrain_corrected_product_frost,'Sigma0_VH',0,0.038)
     
     
