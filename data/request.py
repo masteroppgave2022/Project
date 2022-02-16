@@ -2,6 +2,7 @@ import asf_search as asf
 import geopandas as gpd
 from shapely.geometry import box
 from datetime import date
+import os
 import sys
 
 """
@@ -127,16 +128,33 @@ class requestDownload(searchConstants):
 
     def download(self, results):
         metadata = results.geojson()
-        print(f"Downloading the following results:\n{metadata}")
-        results.download(
-            path='data/unprocessed_downloads/', # Temporary
+        # Check for duplicates in search results
+        existing_rasters = [os.path.split(f)[1] for f in os.listdir('data/unprocessed_downloads/')]
+        scenes_to_download = []
+        for result in metadata['features']:
+            if result['properties']['fileName'] in existing_rasters:
+                print("Raster already downloaded ------> SKIPPING")
+            else:
+                scenes_to_download.append(result['properties']['fileID'])
+        try:
+            results = asf.product_search(scenes_to_download)
+            metadata = results.geojson()
+            print(f"Downloading the following results:\n{metadata}")
+            results.download(
+            path='data/unprocessed_downloads/',
             session=self.session,
-            processes=2 # May be able to increase this?
+            processes=8 
         )
-
+        except Exception as e:
+            if not len(scenes_to_download): print("[ABORTING] All valid results are already downloaded to data/unprocessed_downloads/.")
+            else: print(e)
+        
+        
+        
 
 if __name__=='__main__':
     """ Just for testing purposes: """
-    request = requestDownload("mikaelvagen", "Masteroppgave2022", search_config="data/search_configs/gaula_hovin.cfg")
+    request = requestDownload("mikaelvagen", "Masteroppgave2022", search_config="data/search_configs/gaula_kvål_06_2021.cfg")
+
 
     
