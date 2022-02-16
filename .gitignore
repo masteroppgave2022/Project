@@ -140,3 +140,11 @@ data/downloaded_lvl1_rasters
 data/unprocessed_downloads/
 
 data/S1B_IW_GRDH_1SDV_20200910T060300_20200910T060325_023309_02C443_0BCF.zip
+data/no
+data/unprocessed_downloads
+
+data/TC.tif
+data/TC.dim 
+data/TC_sub2.tif
+data/TC_sub3.tif
+data/TC.data

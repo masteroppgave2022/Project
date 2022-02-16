@@ -1,6 +1,5 @@
 """
 based on http://step.esa.int/docs/tutorials/Performing%20SAR%20processing%20in%20Python%20using%20snappy.pdf
-and https://mygeoblog.com/2019/07/08/process-sentinel-1-with-snap-python-api/
 """
 
 import numpy as np
@@ -21,7 +20,7 @@ import shapefile
 import pygeoif
 
 class Preprocess():
-    def __init__(self, path_to_data="") -> None:
+    def __init__(self, path_to_data="downloads") -> None:
         self.path_to_data = path_to_data
 
     def read_product(self, name):
@@ -45,7 +44,6 @@ class Preprocess():
         return info
 
     def plotBand(self, product, band, vmin, vmax, figname=None):
-        print(f"\nplotting {band}...")
         band = product.getBand(band) 
         w = band.getRasterWidth()
         h = band.getRasterHeight() 
@@ -69,7 +67,6 @@ class Preprocess():
         return imgplot
 
     def apply_orbit_file(self, product):
-        print("\napplying orbit")
         parameters = HashMap() 
         GPF.getDefaultInstance().getOperatorSpiRegistry().loadOperatorSpis()
         parameters.put('Apply-Orbit-File', True)
@@ -81,7 +78,6 @@ class Preprocess():
         return apply_orbit_file
 
     def add_shape_file(self, product, path_to_shapefile):
-        print("\napplying shapefile")
         r = shapefile.Reader(path_to_shapefile)
         g=[]
         for s in r.shapes(): 
@@ -105,50 +101,27 @@ class Preprocess():
         product_subset = snappy.GPF.createProduct('Subset', parameters, product)
         return product_subset
 
-    def apply_thermal_noise_removal(self, product):
-        print('\nthermal noise removal...')
-        parameters = HashMap()
-        parameters.put('removeThermalNoise', True)
-        output = GPF.createProduct('ThermalNoiseRemoval', parameters, product)
-        return output
-
     def calibrate(self, product):
         """
         TODO: change to correct band and polarisation
         """
-        print("\ncalibrating...")
         parameters = HashMap() 
-        parameters.put('outputSigmaBand', False) 
-        parameters.put('outputBetaBand', True)
-        #parameters.put('sourceBands', 'Intensity_VV') 
-        #parameters.put('selectedPolarisations', "VV") 
+        parameters.put('outputSigmaBand', True) 
+        parameters.put('sourceBands', 'Intensity_VV') 
+        parameters.put('selectedPolarisations', "VV") 
         parameters.put('outputImageScaleInDb', False)
         product_calibrated = GPF.createProduct("Calibration", parameters, product)
 
         return product_calibrated
-        
-    def multilook():
-        print("\napplying mulilooking")
-        azLooks = 3
-        rgLooks = 3
-        parameters = HashMap()
-        parameters.put('grSquarePixel', True)
-        parameters.put('nRgLooks', rgLooks)
-        parameters.put('nAzLooks', azLooks)
-        parameters.put('outputIntensity', False)
-        product_multilooked = snappy.GPF.createProduct("Multilook", parameters, product)
-        return product_multilooked
-
 
     def speckle_filter(self, product):
         """
         TODO: check values
         """
-        print("\napplying speckle filter...")
         filterSizeY = '5' 
         filterSizeX = '5' 
         parameters = HashMap()
-        #parameters.put('sourceBands', 'Sigma0_VV') 
+        parameters.put('sourceBands', 'Sigma0_VV') 
         parameters.put('filter', 'Lee') 
         parameters.put('filterSizeX', filterSizeX) 
         parameters.put('filterSizeY', filterSizeY) 
@@ -167,27 +140,13 @@ class Preprocess():
         """
         TODO: check 
         """
-        print("\napplying terrain correction...")
         parameters = HashMap() 
         parameters.put('demResamplingMethod', 'BILINEAR_INTERPOLATION') 
         parameters.put('imgResamplingMethod', 'BILINEAR_INTERPOLATION')
         parameters.put('demName', 'GETASSE30') #ASTER 1Sec GDEM SRTM 3Sec
         parameters.put('pixelSpacingInMeter', 10.0) 
-        #parameters.put('sourceBands', 'Sigma0_VV')
+        parameters.put('sourceBands', 'Sigma0_VV')
         terrain_corrected = GPF.createProduct("Terrain-Correction", parameters, product)
-
-        return terrain_corrected
-
-    def terrain_flattening(self, product):
-        """
-        TODO: check 
-        """
-        print("\napplying terrain flattening...")
-        parameters = HashMap() 
-        parameters.put('demResamplingMethod', 'BICUBIC_INTERPOLATION') 
-        parameters.put('imgResamplingMethod', 'BICUBIC_INTERPOLATION')
-        parameters.put('demName', 'GETASSE30') #ASTER 1Sec GDEM SRTM 3Sec
-        terrain_corrected = GPF.createProduct("Terrain-Flattening", parameters, product)
 
         return terrain_corrected
 
@@ -195,46 +154,29 @@ if __name__=='__main__':
     """ Just for testing purposes: """
     prosess = Preprocess()
     
-    product = prosess.read_product("unprocessed_downloads/S1B_IW_GRDH_1SDV_20200910T060300_20200910T060325_023309_02C443_0BCF.zip")
+    product = prosess.read_product("/S1B_IW_GRDH_1SDV_20200910T060300_20200910T060325_023309_02C443_0BCF.zip")
 
     info = prosess.get_product_info(product)
 
     print(info)
-    prosess.plotBand(product, "Intensity_VV", 0, 100000, "testimage2.png")
-
-    subset = prosess.add_shape_file(product,"shapefiles/molde/molde.shp")
-    prosess.plotBand(subset, "Intensity_VV", 0, 100000, "subset2.png")
+    prosess.plotBand(product, "Intensity_VV", 0, 100000, "testimage.png")
 
     product = prosess.apply_orbit_file(product)
-    prosess.plotBand(product, "Intensity_VV", 0, 100000, "testimage_orbit2.png")
-
-    product = prosess.apply_thermal_noise_removal(product)
-    prosess.plotBand(product, "Intensity_VV", 0, 100000, "testimage_thermalnoise2.png")
-
-    product = prosess.calibrate(product)
-    prosess.plotBand(product, "Beta0_VV", 0, 1, "testimage_calibrate2.png")
-
-    product = prosess.speckle_filter(product)
-    prosess.plotBand(product, "Beta0_VV", 0, 1, "testimage_speckle2.png")
-
-    info = prosess.get_product_info(product)
-
-    print(info)
-
-    #product = prosess.terrain_flattening(product)
-    #prosess.plotBand(product, "Gamma0_VV", 0, 0.1, "testimage_terrainflattened2.png")
-
-    product = prosess.terrain_correction(product)
-    prosess.plotBand(product, "Beta0_VV", 0, 0.1, "testimage_terraincorrected2.png")
-
-    info = prosess.get_product_info(product)
-
-    print(info)
-
-    subset = prosess.add_shape_file(product,"shapefiles/molde2/mol2.shp")
-    prosess.plotBand(subset, "Beta0_VV", 0, 0.1, "subset222.png")
+    prosess.plotBand(product, "Intensity_VV", 0, 100000, "testimage_orbit.png")
 
     subset = prosess.add_shape_file(product,"shapefiles/molde/molde.shp")
-    prosess.plotBand(subset, "Beta0_VV", 0, 0.1, "subset22.png")
+    prosess.plotBand(subset, "Intensity_VV", 0, 100000, "subset1.png")
+    
+    product = prosess.calibrate(product)
+    prosess.plotBand(product, "Sigma0_VV", 0, 1, "testimage_calibrate.png")
+
+    product = prosess.speckle_filter(product)
+    prosess.plotBand(product, "Sigma0_VV", 0, 1, "testimage_speckle.png")
+
+    product = prosess.terrain_correction(product)
+    prosess.plotBand(product, "Sigma0_VV", 0, 0.1, "testimage_terraincorrected.png")
+
+    subset = prosess.add_shape_file(product,"shapefiles/molde/molde.shp")
+    prosess.plotBand(subset, "Sigma0_VV", 0, 0.1, "subset2.png")
 
     

@@ -5,6 +5,7 @@ and https://mygeoblog.com/2019/07/08/process-sentinel-1-with-snap-python-api/
 
 import numpy as np
 import matplotlib
+matplotlib.use("Qt5Agg")
 import matplotlib.pyplot as plt 
 import matplotlib.colors as colors 
 import os
@@ -58,15 +59,16 @@ class Preprocess():
 
         width = 12
         height = 12
-        plt.figure(figsize=(width, height))
-        imgplot = plt.imshow(band_data, cmap=plt.cm.binary, vmin=vmin, vmax=vmax)
+        #plt.figure(figsize=(width, height))
+        #imgplot = plt.imshow(band_data, cmap=plt.cm.binary, vmin=vmin, vmax=vmax)
         plt.imshow(band_data, cmap=plt.cm.binary, vmin=vmin, vmax=vmax)
-        if plt.figimage != None:
-            plt.savefig(figname)
-        else:
-            plt.show(imgplot)
+        #plt.show()
+        #if plt.figimage != None:
+        #    plt.savefig(figname)
+        #else:
+        #    plt.show(imgplot)
 
-        return imgplot
+        #return imgplot
 
     def apply_orbit_file(self, product):
         print("\napplying orbit")
@@ -118,7 +120,7 @@ class Preprocess():
         """
         print("\ncalibrating...")
         parameters = HashMap() 
-        parameters.put('outputSigmaBand', False) 
+        parameters.put('outputSigmaBand', True) 
         parameters.put('outputBetaBand', True)
         #parameters.put('sourceBands', 'Intensity_VV') 
         #parameters.put('selectedPolarisations', "VV") 
@@ -171,7 +173,9 @@ class Preprocess():
         parameters = HashMap() 
         parameters.put('demResamplingMethod', 'BILINEAR_INTERPOLATION') 
         parameters.put('imgResamplingMethod', 'BILINEAR_INTERPOLATION')
-        parameters.put('demName', 'GETASSE30') #ASTER 1Sec GDEM SRTM 3Sec
+        #parameters.put('demName', 'GETASSE30') #ASTER 1Sec GDEM SRTM 3Sec
+        parameters.put('demName', 'External DEM')
+        parameters.put('externalDEMFile', 'no/no.tif')
         parameters.put('pixelSpacingInMeter', 10.0) 
         #parameters.put('sourceBands', 'Sigma0_VV')
         terrain_corrected = GPF.createProduct("Terrain-Correction", parameters, product)
@@ -203,7 +207,7 @@ if __name__=='__main__':
     prosess.plotBand(product, "Intensity_VV", 0, 100000, "testimage2.png")
 
     subset = prosess.add_shape_file(product,"shapefiles/molde/molde.shp")
-    prosess.plotBand(subset, "Intensity_VV", 0, 100000, "subset2.png")
+    prosess.plotBand(subset, "Intensity_VV", 0, 100000) #"subset2.png"
 
     product = prosess.apply_orbit_file(product)
     prosess.plotBand(product, "Intensity_VV", 0, 100000, "testimage_orbit2.png")
