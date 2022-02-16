@@ -1,5 +1,6 @@
 #!/usr/bin/bash
 
+eval "python -m pip install --upgrade pip"
 PACKAGES=(
     "numpy" 
     "matplotlib" 
