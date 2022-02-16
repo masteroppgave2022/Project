@@ -139,3 +139,7 @@ fall_2021/seg_model_sat-2-5.hdf5
 data/downloaded_lvl1_rasters
 data/unprocessed_downloads/
 data/local_testing.py
+data/NVE_LAKES
+data/shapefiles
+data/testing
+fall_2021/

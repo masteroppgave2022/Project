@@ -7,6 +7,7 @@ import matplotlib
 matplotlib.use("Qt5Agg")
 import matplotlib.pyplot as plt 
 import matplotlib.colors as colors 
+import geopandas as gpd
 import os
 import snappy
 
@@ -47,7 +48,7 @@ class Preprocess():
         subset = snappy.GPF.createProduct('Subset', parameters, product)
         return subset
 
-    def plot_band(self, product_1, product_2, band, vmin, vmax, save_path=None):
+    def plot_band(self, product_1, band, vmin, vmax, save_path=None):
         band_1 = product_1.getBand(band) 
         w = band_1.getRasterWidth()
         h = band_1.getRasterHeight() 
@@ -55,19 +56,19 @@ class Preprocess():
         band_1.readPixels(0, 0, w, h, band_data_1)
         band_data_1.shape = h, w
 
-        band_2 = product_2.getBand(band) 
-        w = band_2.getRasterWidth()
-        h = band_2.getRasterHeight() 
-        band_data_2 = np.zeros(w * h, np.float32) 
-        band_2.readPixels(0, 0, w, h, band_data_2)
-        band_data_2.shape = h, w
+        # band_2 = product_2.getBand(band) 
+        # w = band_2.getRasterWidth()
+        # h = band_2.getRasterHeight() 
+        # band_data_2 = np.zeros(w * h, np.float32) 
+        # band_2.readPixels(0, 0, w, h, band_data_2)
+        # band_data_2.shape = h, w
 
-        fig, (ax1,ax2) = plt.subplots(1,2)
+        # fig, (ax1,ax2) = plt.subplots(1,2)
         # imgplot = plt.imshow(band_data, cmap=plt.cm.binary, vmin=vmin, vmax=vmax)
-        ax1.set_title('Original')
-        ax1.imshow(band_data_1, cmap=plt.cm.binary_r, vmin=vmin, vmax=vmax)
-        ax2.set_title('Frost')
-        ax2.imshow(band_data_2, cmap=plt.cm.binary_r, vmin=vmin, vmax=vmax)
+        # ax1.set_title('Original')
+        plt.imshow(band_data_1, cmap=plt.cm.binary_r, vmin=vmin, vmax=vmax)
+        # ax2.set_title('Frost')
+        # ax2.imshow(band_data_2, cmap=plt.cm.binary_r, vmin=vmin, vmax=vmax)
         plt.show()
         # if save_path:
         #     plt.savefig(save_path)
@@ -95,18 +96,22 @@ class Preprocess():
 
         wkt = str(m.wkt).replace("MULTIPOINT", "POLYGON(") + ")"
 
-        SubsetOp = snappy.jpy.get_type('org.esa.snap.core.gpf.common.SubsetOp') 
+        # SubsetOp = snappy.jpy.get_type('org.esa.snap.core.gpf.common.SubsetOp') 
 
         bounding_wkt = wkt
 
         geometry = snappy.WKTReader().read(bounding_wkt)
 
-        HashMap = snappy.jpy.get_type('java.util.HashMap') 
-        snappy.GPF.getDefaultInstance().getOperatorSpiRegistry().loadOperatorSpis() 
-        parameters = HashMap()
+        # HashMap = snappy.jpy.get_type('java.util.HashMap') 
+        # snappy.GPF.getDefaultInstance().getOperatorSpiRegistry().loadOperatorSpis() 
+        parameters = snappy.HashMap()
         parameters.put('copyMetadata', True)
         parameters.put('geoRegion', geometry)
         product_subset = snappy.GPF.createProduct('Subset', parameters, product)
+        band = self.get_product_info(product_subset)
+        print(band)
+        raise Exception("Testing")
+        
 
         return product_subset
 
@@ -142,11 +147,9 @@ class Preprocess():
         # parameters.put('targetWindowSizeStr', '3x3') 
         # parameters.put('sigmaStr', '0.9') 
         # parameters.put('anSize', '50')
-        speckle_filter_frost = snappy.GPF.createProduct('Speckle-Filter', parameters, product)
-        parameters.put('filter', 'Lee Sigma')
-        speckle_filter_lee = snappy.GPF.createProduct('Speckle-Filter', parameters, product)
+        speckle_filter = snappy.GPF.createProduct('Speckle-Filter', parameters, product)
 
-        return speckle_filter_frost, speckle_filter_lee
+        return speckle_filter
 
     def terrain_correction(self, product):
         """
@@ -158,7 +161,7 @@ class Preprocess():
         parameters.put('demResamplingMethod', 'BILINEAR_INTERPOLATION') 
         parameters.put('pixelSpacingInMeter', 10.0) 
         parameters.put('nodataValueAtSea', False)
-        parameters.put('mapProjection', 'AUTO:42001')
+        # parameters.put('mapProjection', 'AUTO:42001')
         parameters.put('saveSelectedSourceBand', True)
         terrain_corrected = snappy.GPF.createProduct("Terrain-Correction", parameters, product)
 
@@ -181,15 +184,18 @@ if __name__=='__main__':
     # Radiometric calibration:
     rm_calibrated_product = process.calibrate(therm_noise_removed_product)
     # Speckle filtering:
-    filtered_product_frost, filtered_product_lee = process.speckle_filter(rm_calibrated_product)
+    filtered_product = process.speckle_filter(rm_calibrated_product)
     # Terrain correction:
-    terrain_corrected_product_lee = process.terrain_correction(rm_calibrated_product)
-    terrain_corrected_product_frost = process.terrain_correction(filtered_product_frost)
+    terrain_corrected_product = process.terrain_correction(filtered_product)
+    
+    # shp_file = '/localhome/studenter/mikaellv/Project/data/shapefiles/testing/test.shp'
+    # subset = process.add_shape_file(terrain_corrected_product, shp_file)
+
 
     # Write GTiff to file:
-    # out_path = '/localhome/studenter/mikaellv/Project/data/processed_plots/Final_VH_No_Speckle'
-    # snappy.ProductIO.writeProduct(terrain_corrected_product,out_path,'GeoTIFF')
+    out_path = '/localhome/studenter/mikaellv/Project/data/processed_plots/Final_VH'
+    snappy.ProductIO.writeProduct(terrain_corrected_product,out_path,'GeoTIFF')
 
-    process.plot_band(terrain_corrected_product_lee, terrain_corrected_product_frost,'Sigma0_VH',0,0.038)
+    process.plot_band(terrain_corrected_product,'Sigma0_VH',0,0.038)
     
     
