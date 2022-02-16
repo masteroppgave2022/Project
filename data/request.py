@@ -81,7 +81,9 @@ class requestDownload(searchConstants):
         with open(self.search_config) as cfile:
             for line in cfile:
                 parameters = line.strip().split(': ')
-                if parameters[1] in self.constants.keys():
+                if parameters[1] == 'None':
+                    self.search_params[parameters[0]] = None
+                elif parameters[1] in self.constants.keys():
                     self.search_params[parameters[0]] = self.constants[parameters[1]]
                 elif parameters[0] == 'start' or parameters[0] == 'end':
                     date_list = [int(d) for d in parameters[1].split('-')]
@@ -135,6 +137,6 @@ class requestDownload(searchConstants):
 
 if __name__=='__main__':
     """ Just for testing purposes: """
-    request = requestDownload("mikaelvagen", "Masteroppgave2022", search_config="search_config.cfg")
+    request = requestDownload("mikaelvagen", "Masteroppgave2022", search_config="data/search_configs/gaula_hovin.cfg")
 
     
