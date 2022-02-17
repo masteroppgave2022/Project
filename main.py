@@ -1,7 +1,22 @@
+import os
+import subprocess
+import multiprocessing
 import data.request as req
 # import data.preprocess as pp
 
 if __name__ == '__main__':
-    # download = req.requestDownload(username='mikaelvagen',password='Masteroppgave2022',\
-    #    search_config='data/search_configs/gaula_kvål_06_2021.cfg')
-    pass
+    config = 'main_config.cfg'
+
+    with open(config) as cfg:
+        for line in cfg:
+            parameters = line.strip().split(': ')
+            if parameters[0] == 'download':
+                download = True if parameters[1].lower() == 'true' else False
+            elif parameters[0] == 'preprocess':
+                preprocess = True if parameters[1].lower() == 'true' else False
+
+    if download:
+        search_configs = 'data/search_configs/'
+        all_configs = [search_configs+f for f in os.listdir(search_configs)]
+        print(all_configs)
+

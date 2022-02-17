@@ -35,11 +35,11 @@ class requestDownload(searchConstants):
 
     """ TODO: Create Docstring for help() method """
 
-    def __init__(self,username=None,password=None,search_config=None,search_mode='roi'):
+    def __init__(self,username=None,password=None,search_configs=None,search_mode='roi'):
         self.search_mode = search_mode
         self.username = username
         self.password = password
-        self.search_config = search_config
+        self.search_configs = search_configs
         self.authenticate_session()
 
         self.search_params = {
@@ -53,7 +53,7 @@ class requestDownload(searchConstants):
             "end": None,
             "maxResults": None
         }
-        self.request_search()
+        self.search()
         
     def authenticate_session(self):
         try:
@@ -63,23 +63,27 @@ class requestDownload(searchConstants):
             print(f"USER AUTHENTICATION FAILED: {e}\n\n\
             Initiate download request as: requestDownload(<username>,<password>,<search_mode>)")
 
-    def request_search(self):
+    def search(self):
         print(f"Search mode set to {self.search_mode.upper()}.")
         if not self.search_mode.upper() == 'ROI':
-            print('Script currently only supports requests by Region of Interest (ROI).')
+            raise Exception('Script currently only supports requests by Region of Interest (ROI).')
         
-        self.parse_search_config()
-        self.set_region_of_interest()
-        print(f"Search parameters:\n{self.search_params}\n")
-        search = input("Proceed to search [s] or cancel [anything else]? ")
-
-        if search.lower() == 's':
-            self.search()
+        scenes_to_download = []
+        for search_config in self.search_configs:
+            self.parse_search_config(search_config=search_config)
+            print(f"Search parameters:\n{self.search_params}\n")
+            scenes_to_download.extend(self.append_search_results())
+        if len(scenes_to_download) != 0:
+            download = input(f"Total of {len(scenes_to_download)} images found, proceed to download [y/n]? ")
+            if download.lower() == 'y':
+                results = asf.product_search(scenes_to_download)
+                self.download(results=results)
         else:
-            sys.exit("[INFO] Search cancelled by user.")
+            print(f"[ABORTING] Total of {len(scenes_to_download)} images found.")
 
-    def parse_search_config(self):
-        with open(self.search_config) as cfile:
+
+    def parse_search_config(self, search_config):
+        with open(search_config) as cfile:
             for line in cfile:
                 parameters = line.strip().split(': ')
                 if parameters[1] == 'None':
@@ -108,7 +112,7 @@ class requestDownload(searchConstants):
         """
         pass
                 
-    def search(self):
+    def append_search_results(self):
         results = asf.search(intersectsWith=self.search_params['intersectsWith'],
                             platform=self.search_params['platform'],
                             beamMode=self.search_params['beamMode'],
@@ -118,15 +122,7 @@ class requestDownload(searchConstants):
                             start=self.search_params['start'],
                             end=self.search_params['end'],
                             maxResults=self.search_params['maxResults'])
-        print(f"[INFO] Search complete, total images found: {len(results)}.")
-        if len(results):
-            download = input("Download results [y/n]? ")
-            if download.lower() == 'y': self.download(results)
-        else:
-            print()
-            sys.exit("[INFO] No results found, modify search parameters and retry.")
-
-    def download(self, results):
+        print(f"[INFO] Search complete, images found: {len(results)}.")
         metadata = results.geojson()
         # Check for duplicates in search results
         existing_rasters = [os.path.split(f)[1] for f in os.listdir('data/unprocessed_downloads/')]
@@ -136,25 +132,41 @@ class requestDownload(searchConstants):
                 print("Raster already downloaded ------> SKIPPING")
             else:
                 scenes_to_download.append(result['properties']['fileID'])
-        try:
-            results = asf.product_search(scenes_to_download)
-            metadata = results.geojson()
-            print(f"Downloading the following results:\n{metadata}")
-            results.download(
-            path='data/unprocessed_downloads/',
-            session=self.session,
-            processes=8 
+        return scenes_to_download
+
+
+    def download(self, results):
+        metadata = results.geojson()
+        print(f"Downloading the following results:\n{metadata}")
+        results.download(
+        path='data/unprocessed_downloads/',
+        session=self.session,
+        processes=8 
         )
-        except Exception as e:
-            if not len(scenes_to_download): print("[ABORTING] All valid results are already downloaded to data/unprocessed_downloads/.")
-            else: print(e)
         
         
         
 
 if __name__=='__main__':
     """ Just for testing purposes: """
-    request = requestDownload("mikaelvagen", "Masteroppgave2022", search_config="data/search_configs/gaula_kvål_06_2021.cfg")
+    request = requestDownload("mikaelvagen", "Masteroppgave2022", search_configs=["data/search_configs/gaula_kvål_06_2021.cfg"])
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
     
