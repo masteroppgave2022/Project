@@ -13,7 +13,7 @@ if __name__=='__main__':
 
     print(info)
 
-    subset = product#prosess.add_shape_file(product,"shapefiles/molde/molde.shp")
+    subset = prosess.add_shape_file(product,"shapefiles/molde/molde.shp")
     #prosess.plotBand(subset, "Intensity_VV", 0, 100000)
 
     ######### Orbitfile
