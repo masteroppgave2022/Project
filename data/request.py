@@ -40,6 +40,7 @@ class requestDownload(searchConstants):
         self.username = username
         self.password = password
         self.search_configs = search_configs
+        self.scenes_to_download = []
         self.authenticate_session()
 
         self.search_params = {
@@ -68,25 +69,24 @@ class requestDownload(searchConstants):
         if not self.search_mode.upper() == 'ROI':
             raise Exception('Script currently only supports requests by Region of Interest (ROI).')
         
-        scenes_to_download = []
         for search_config in self.search_configs:
             self.parse_search_config(search_config=search_config)
             print(f"Search parameters:\n{self.search_params}\n")
-            scenes_to_download.extend(self.append_search_results())
-        if len(scenes_to_download) != 0:
-            download = input(f"Total of {len(scenes_to_download)} images found, proceed to download [y/n]? ")
+            self.scenes_to_download.extend(self.append_search_results())
+        if len(self.scenes_to_download) != 0:
+            download = input(f"Total of {len(self.scenes_to_download)} images found, proceed to download [y/n]? ")
             if download.lower() == 'y':
-                results = asf.product_search(scenes_to_download)
+                results = asf.product_search(self.scenes_to_download)
                 self.download(results=results)
         else:
-            print(f"[ABORTING] Total of {len(scenes_to_download)} images found.")
+            print(f"[ABORTING] Total of {len(self.scenes_to_download)} images found.")
 
 
     def parse_search_config(self, search_config):
         with open(search_config) as cfile:
             for line in cfile:
                 parameters = line.strip().split(': ')
-                if parameters[1] == 'None':
+                if parameters[1].lower() == 'none':
                     self.search_params[parameters[0]] = None
                 elif parameters[1] in self.constants.keys():
                     self.search_params[parameters[0]] = self.constants[parameters[1]]
@@ -128,7 +128,8 @@ class requestDownload(searchConstants):
         existing_rasters = [os.path.split(f)[1] for f in os.listdir('data/unprocessed_downloads/')]
         scenes_to_download = []
         for result in metadata['features']:
-            if result['properties']['fileName'] in existing_rasters:
+            r = result['properties']['fileName']
+            if r in existing_rasters and r not in self.scenes_to_download:
                 print("Raster already downloaded ------> SKIPPING")
             else:
                 scenes_to_download.append(result['properties']['fileID'])
@@ -141,15 +142,9 @@ class requestDownload(searchConstants):
         results.download(
         path='data/unprocessed_downloads/',
         session=self.session,
-        processes=8 
+        processes=8
         )
         
-        
-        
-
-if __name__=='__main__':
-    """ Just for testing purposes: """
-    request = requestDownload("mikaelvagen", "Masteroppgave2022", search_configs=["data/search_configs/gaula_kvål_06_2021.cfg"])
 
 
 
