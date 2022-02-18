@@ -4,26 +4,34 @@ import matplotlib.pyplot as plt
 
 from preprocessFunctions import Preprocess
 
+import logging
+
 if __name__=='__main__':
+    logging.basicConfig(filename='example.log', encoding='utf-8', level=logging.INFO, format='%(asctime)s %(message)s')
     prosess = Preprocess()
-    
+
+    logging.info("process started")
     product = prosess.read_product("unprocessed_downloads/S1B_IW_GRDH_1SDV_20200910T060300_20200910T060325_023309_02C443_0BCF.zip")
 
     info = prosess.get_product_info(product)
 
     print(info)
 
-    subset = prosess.add_shape_file(product,"shapefiles/molde/molde.shp")
+    logging.info(info)
+
+    subset = prosess.add_shape_file(product,"shapefiles-old/molde/molde.shp")
     #prosess.plotBand(subset, "Intensity_VV", 0, 100000)
 
     ######### Orbitfile
 
     subset_O = prosess.apply_orbit_file(subset)
+    logging.info("Orbitfile applied")
     #prosess.plotBand(subset_O, "Intensity_VV", 0, 100000)  
 
     ######### Thermal Noise Reduction
 
     subset_TNR = prosess.apply_thermal_noise_removal(subset_O)
+    logging.info("Thermal noise reduction applied")
 
     plt.figure(figsize=(24, 12))
     plt.suptitle("Orbit and TNR")
@@ -33,11 +41,12 @@ if __name__=='__main__':
     plt.subplot(122)
     prosess.plotBand(subset_TNR, "Intensity_VV", 16, 100000) 
     plt.title("Intensity_VV")
-    #plt.show()
+    plt.show()
 
     ######### Calibration
 
     subset_C = prosess.calibrate(subset_TNR)
+    logging.info("Calibration applied")
 
     info = prosess.get_product_info(subset_C)
     print(info)
@@ -50,10 +59,12 @@ if __name__=='__main__':
     plt.subplot(122)
     prosess.plotBand(subset_C, "Sigma0_VV", 0, 0.5)
     plt.title("Sigma0_VV")
-    #plt.show()
+    plt.show()
 
     ######### Terrain Correction
 
+    logging.warning("Terrain correction will take some time.....")
+    """
     subset_TC = prosess.terrain_correction(subset_C)
 
     info = prosess.get_product_info(subset_TC)
@@ -69,5 +80,7 @@ if __name__=='__main__':
     prosess.plotBand(subset_TC, "Sigma0_VV", 0, 0.5)
     plt.title("Sigma0_VV")
     plt.show()
+     """
+    logging.info("Finished")
 
     

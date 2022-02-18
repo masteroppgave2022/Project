@@ -1,4 +1,5 @@
 import os
+import logging
 import subprocess
 import multiprocessing
 import data.request as req
@@ -6,6 +7,7 @@ import data.request as req
 
 if __name__ == '__main__':
     config = 'main_config.cfg'
+    logging.basicConfig(filename='example.log', encoding='utf-8', level=logging.DEBUG, format='%(asctime)s %(message)s',  datefmt='%m/%d/%Y %I:%M:%S %p')
 
     with open(config) as cfg:
         for line in cfg:
