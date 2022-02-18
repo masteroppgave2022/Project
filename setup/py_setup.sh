@@ -18,7 +18,7 @@ PACKAGES=(
     "shapely"
     "pygeoif"
     "PyQt5"
-    "ConfigArgParse")
+    "configparser")
 
 PREFIX="python -m pip install "
 
