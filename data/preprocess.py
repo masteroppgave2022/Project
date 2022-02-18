@@ -7,7 +7,7 @@ from preprocessFunctions import Preprocess
 import logging
 
 if __name__=='__main__':
-    logging.basicConfig(filename='example.log', encoding='utf-8', level=logging.INFO, format='%(asctime)s %(message)s')
+    logging.basicConfig(filename='example.log', encoding='utf-8', level=logging.INFO, format='%(asctime)s %(message)s', datefmt='%m/%d/%Y %H:%M:%S')
     prosess = Preprocess()
 
     logging.info("process started")
@@ -41,7 +41,7 @@ if __name__=='__main__':
     plt.subplot(122)
     prosess.plotBand(subset_TNR, "Intensity_VV", 16, 100000) 
     plt.title("Intensity_VV")
-    plt.show()
+    #plt.show()
 
     ######### Calibration
 
@@ -59,7 +59,7 @@ if __name__=='__main__':
     plt.subplot(122)
     prosess.plotBand(subset_C, "Sigma0_VV", 0, 0.5)
     plt.title("Sigma0_VV")
-    plt.show()
+    #plt.show()
 
     ######### Terrain Correction
 
