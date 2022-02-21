@@ -3,14 +3,41 @@ import logging
 import subprocess
 import configparser
 import multiprocessing
+import snappy
+import geopandas as gpd
+import pandas as pd
+from shapely.geometry import Polygon
+import jpy
 from turtle import down
 import data.request as req
 from data.preprocessFunctions import Preprocess 
 
+
+def geopos_to_wkt(geopos):
+    lat = []
+    long =[]
+
+    for e in geopos:
+        lat.append(e.lat)
+        long.append(e.lon)
+    
+    polygon_geom = Polygon(zip(long, lat))
+    print(polygon_geom)
+    crs = {'init': 'epsg:4326'}
+    polygon = gpd.GeoDataFrame(crs=crs, geometry=[polygon_geom])       
+    print(polygon.geometry)
+    #geometry = gpd.points_from_xy(long, lat, crs="EPSG:4326")
+    #wkt = geometry.GeoSeries.to_wkt()
+    polygon.to_file(filename='polygon.shp', driver="ESRI Shapefile")
+    #return wkt
+
+
+
+
 if __name__ == '__main__':
     logging.basicConfig(filename='main_log.log', encoding='utf-8', level=logging.DEBUG, format='%(asctime)s %(levelname)s: %(message)s',  datefmt='%m/%d/%Y %H:%M:%S')
     parser_main = configparser.ConfigParser()
-    parser_main.read('main_config.ini')
+    parser_main.read('/localhome/studenter/renatask/Project/main_config.ini')
 
     download_path = parser_main['main']['download_path']
     shapefile_path = parser_main['main']['shapefile_path']
@@ -49,13 +76,21 @@ if __name__ == '__main__':
             if file.startswith("S1A"): continue
             if file.startswith("S1B_IW_GRDH_1SDV_20200910T060300"): continue
             product = pp.read_product(download_path+file)
+
+            GeoPos = snappy.ProductUtils.createGeoBoundary(product, 1)
+            one = GeoPos[0]
+            print(GeoPos[2000])
+            wkt = geopos_to_wkt(GeoPos)
+            print(wkt)
+
+
             logging.info(f"Product {file} read")
             for shape in os.listdir(shapefile_path):
                 if shape.startswith("."): continue
                 #subset = pp.add_shape_file(product, shapefile_path+shape+"/"+shape)
                 #pp.save_product(subset, shape+"_"+file, subset_path, "BEAM-DIMAP")
                 subset = pp.subset(product, shapefile_path+shape+"/"+shape, shape+"_"+file, subset_path, "BEAM-DIMAP")
-                logging.info(f"Subset {shape+file} saved")
+                logging.info(f"Subset {shape+'_'+file} saved")
 
         for subset in os.listdir(subset_path):
             logging.info(f"Subset {subset} read")
