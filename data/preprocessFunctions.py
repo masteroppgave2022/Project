@@ -3,6 +3,7 @@ based on http://step.esa.int/docs/tutorials/Performing%20SAR%20processing%20in%2
 and https://mygeoblog.com/2019/07/08/process-sentinel-1-with-snap-python-api/
 """
 
+import logging
 import numpy as np
 import matplotlib
 matplotlib.use("Qt5Agg")
@@ -16,6 +17,7 @@ from snappy import ProductUtils
 from snappy import WKTReader 
 from snappy import HashMap
 from snappy import GPF
+import warnings
 
 # For shapefiles
 import shapefile 
@@ -154,9 +156,9 @@ class Preprocess():
         parameters.put('filter', 'Lee') 
         parameters.put('filterSizeX', filterSizeX) 
         parameters.put('filterSizeY', filterSizeY) 
-        parameters.put('dampingFactor', '2') 
-        parameters.put('estimateENL', 'true') 
-        parameters.put('enl', '1.0') 
+        #parameters.put('dampingFactor', '2') 
+        #parameters.put('estimateENL', 'true') 
+        #parameters.put('enl', '1.0') 
         parameters.put('numLooksStr', '1') 
         parameters.put('targetWindowSizeStr', '3x3') 
         parameters.put('sigmaStr', '0.9') 
@@ -194,6 +196,59 @@ class Preprocess():
         terrain_corrected = GPF.createProduct("Terrain-Flattening", parameters, product)
 
         return terrain_corrected
+    
+    def save_product(self, product, name, path, type="GeoTIFF"):
+        """
+        Type = "BEAM-DIMAP" for snap, else "GeoTIFF"
+        """
+        ProductIO.writeProduct(product, path+name, type)
+    
+    def subset(self, product, shape, name, save_path, type = "GeoTIFF"):
+
+        """
+        Type = "BEAM-DIMAP" for snap, else "GeoTIFF"
+        """
+
+        r = shapefile.Reader(shape)
+        g=[]
+        for s in r.shapes(): 
+            g.append(pygeoif.geometry.as_shape(s))
+
+        m = pygeoif.MultiPoint(g)
+
+        wkt = str(m.wkt).replace("MULTIPOINT", "POLYGON(") + ")"
+
+        SubsetOp = snappy.jpy.get_type('org.esa.snap.core.gpf.common.SubsetOp') 
+
+        bounding_wkt = wkt
+
+        geometry = WKTReader().read(bounding_wkt)
+
+        HashMap = snappy.jpy.get_type('java.util.HashMap') 
+        GPF.getDefaultInstance().getOperatorSpiRegistry().loadOperatorSpis() 
+        parameters = HashMap()
+        parameters.put('copyMetadata', True)
+        parameters.put('geoRegion', geometry)
+
+        with warnings.catch_warnings():
+            warnings.simplefilter("error")
+
+            try:
+                product_subset = snappy.GPF.createProduct('Subset', parameters, product)
+                print("\napplying shapefile")
+                intersects = True
+            except:
+                print(f"Product and shapefile does not intersect for {name}")
+                intersects = False
+
+            if intersects:
+                self.save_product(product_subset, name, save_path, type)
+
+                
+            
+        
+
+
 
 if __name__=='__main__':
     """ Just for testing purposes: """

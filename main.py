@@ -3,13 +3,19 @@ import logging
 import subprocess
 import configparser
 import multiprocessing
+from turtle import down
 import data.request as req
-# import data.preprocess as pp
+from data.preprocessFunctions import Preprocess 
 
 if __name__ == '__main__':
-    logging.basicConfig(filename='main_log.log', encoding='utf-8', level=logging.DEBUG, format='%(asctime)s %(message)s',  datefmt='%m/%d/%Y %H:%M:%S')
+    logging.basicConfig(filename='main_log.log', encoding='utf-8', level=logging.DEBUG, format='%(asctime)s %(levelname)s: %(message)s',  datefmt='%m/%d/%Y %H:%M:%S')
     parser_main = configparser.ConfigParser()
     parser_main.read('main_config.ini')
+
+    download_path = parser_main['main']['download_path']
+    shapefile_path = parser_main['main']['shapefile_path']
+    subset_path = parser_main['main']['subset_path']
+    save_path = parser_main['main']['save_path']
 
     if parser_main.getboolean('main','download'):
         user = parser_main['download']['username']
@@ -35,8 +41,41 @@ if __name__ == '__main__':
 
     if parser_main.getboolean('main', 'preprocess'):
         """ Processing pipeline to be implemented here """
+        print("processing...")
+        pp = Preprocess()
+        for file in os.listdir(download_path):
+            if file.startswith("."): continue
+            if file.startswith("S1A_IW_GRDH_1SDV_20210628"): continue
+            if file.startswith("S1A"): continue
+            if file.startswith("S1B_IW_GRDH_1SDV_20200910T060300"): continue
+            product = pp.read_product(download_path+file)
+            logging.info(f"Product {file} read")
+            for shape in os.listdir(shapefile_path):
+                if shape.startswith("."): continue
+                #subset = pp.add_shape_file(product, shapefile_path+shape+"/"+shape)
+                #pp.save_product(subset, shape+"_"+file, subset_path, "BEAM-DIMAP")
+                subset = pp.subset(product, shapefile_path+shape+"/"+shape, shape+"_"+file, subset_path, "BEAM-DIMAP")
+                logging.info(f"Subset {shape+file} saved")
+
+        for subset in os.listdir(subset_path):
+            logging.info(f"Subset {subset} read")
+            subset_R = pp.read_product(subset_path+subset)
+            subset_O = pp.apply_orbit_file(subset_R)
+            logging.info(f"Orbitfile applied to {subset}")
+            subset_O_TNR = pp.apply_thermal_noise_removal(subset_O)
+            logging.info(f"Thermal noise removal for {subset} finished")
+            subset_O_TNR_C = pp.calibrate(subset_O_TNR)
+            logging.info(f"Calibration for {subset} finished")
+            subset_O_TNR_C_TC = pp.terrain_correction(subset_O_TNR_C)
+            logging.info(f"Terrain correction for {subset} finished")
+            pp.save_product(subset_O_TNR_C_TC, subset, save_path)
+            logging.info(f"Subset {subset} preprocessed and saved")
+
+
+
+         
         pass
 
 
-    
+
 
