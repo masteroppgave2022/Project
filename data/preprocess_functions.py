@@ -5,6 +5,7 @@ and https://mygeoblog.com/2019/07/08/process-sentinel-1-with-snap-python-api/
 
 import logging
 import numpy as np
+import geopandas as gpd
 import matplotlib
 matplotlib.use("Qt5Agg")
 import matplotlib.pyplot as plt 
@@ -245,6 +246,25 @@ class Preprocess():
 
             if intersects:
                 self.save_product(product_subset, name, save_path, type)
+
+    def clip_shapefile(self, source_shp, mask_shps, destination):
+        src = gpd.read_file(source_shp)
+        for mask in mask_shps:
+            output_name = os.path.split(mask)[1]
+            out_path = destination+output_name.split('.')[0]+'/'
+            if not os.path.exists(out_path):
+                os.makedirs(out_path)
+                out_path = out_path+output_name
+                extent = gpd.read_file(mask)
+                # Check CRS:
+                if not src.crs == extent.crs:
+                    print(f"[SKIPPING] CRS of source SHP and mask SHP: {mask} are not the same.")
+                    continue
+                else:
+                    clipped = gpd.clip(src, extent)
+                    clipped.to_file(out_path)
+            else:
+                print("[SKIPPING] ... Clipped SHP already exists.")
 
                 
             

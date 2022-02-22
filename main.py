@@ -10,7 +10,7 @@ from shapely.geometry import Polygon
 #import jpy
 from turtle import down
 import data.request as req
-from data.preprocessFunctions import Preprocess 
+from data.preprocess_functions import Preprocess 
 
 
 def geopos_to_wkt(geopos):
@@ -44,11 +44,9 @@ if __name__ == '__main__':
     subset_path = parser_main['main']['subset_path']
     save_path = parser_main['main']['save_path']
 
-    if parser_main.getboolean('main','download'):
+    if parser_main.getboolean('main','download'): # Download True/False
         user = parser_main['download']['username']
         pw = parser_main['download']['password']
-
-
         search_configs = 'data/search_configs/'
         parser_locations = configparser.ConfigParser()
         parser_locations.read(search_configs+'LOCATIONS.ini')
@@ -58,18 +56,25 @@ if __name__ == '__main__':
             if loc.lower() == 'locations': continue
             if parser_locations.getboolean('download',loc):
                 configs.append(search_configs+f)
-        
         request = req.requestDownload(username=user,password=pw,search_configs=configs)
-
-
-
-
-
+    
 
     if parser_main.getboolean('main', 'preprocess'):
         """ Processing pipeline to be implemented here """
-        print("processing...")
+        print("[INFO] processing...")
         pp = Preprocess()
+
+        if parser_main.getboolean('preprocess', 'clip_shapefile'):
+            print('[INFO] Clipping shapefile ... ')
+            src = '/localhome/studenter/mikaellv/Project/data/FBK_vann/FKB_vann.shp'
+            dest = '/localhome/studenter/mikaellv/Project/data/untiled_masks/'
+            extent_root = '/localhome/studenter/mikaellv/Project/data/shapefiles/'
+            locations = os.listdir(extent_root)
+            locations.remove('.DS_Store')
+            extents = [extent_root+f+'/'+f+'.shp' for f in locations]
+            pp.clip_shapefile(src,extents,dest)
+            print('[INFO] Done.')
+
         for file in os.listdir(download_path):
             if file.startswith("."): continue
             if file.startswith("S1A_IW_GRDH_1SDV_20210628"): continue
