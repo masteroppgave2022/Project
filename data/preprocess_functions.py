@@ -24,6 +24,11 @@ import warnings
 import shapefile 
 import pygeoif
 
+import geopandas as gpd
+import pandas as pd
+from shapely.geometry import Polygon
+import shapely
+
 class Preprocess():
     def __init__(self, path_to_data="") -> None:
         self.path_to_data = path_to_data
@@ -203,49 +208,76 @@ class Preprocess():
         Type = "BEAM-DIMAP" for snap, else "GeoTIFF"
         """
         ProductIO.writeProduct(product, path+name, type)
+
+    def geopos_to_wkt(self, geopos):
+        lat = []
+        long =[]
+
+        for e in geopos:
+            lat.append(e.lat)
+            long.append(e.lon)
+        
+        polygon_geom = Polygon(zip(long, lat))
+        #print(polygon_geom)
+        crs = {'init': 'epsg:4326'}
+        polygon = gpd.GeoDataFrame(crs=crs, geometry=[polygon_geom])       
+        #print(polygon.geometry)
+        #geometry = gpd.points_from_xy(long, lat, crs="EPSG:4326")
+        #wkt = geometry.GeoSeries.to_wkt()
+        #polygon.to_file(filename='polygon.shp', driver="ESRI Shapefile")
+        return polygon
     
-    def subset(self, product, shape, name, save_path, type = "GeoTIFF"):
+    def subset(self, product, shape, name, save_path, GeoPos, type = "GeoTIFF"):
 
         """
         Type = "BEAM-DIMAP" for snap, else "GeoTIFF"
         """
 
-        with warnings.catch_warnings():
-            warnings.simplefilter("error")
+        scene = self.geopos_to_wkt(GeoPos)
 
-            r = shapefile.Reader(shape)
-            g=[]
-            for s in r.shapes(): 
-                g.append(pygeoif.geometry.as_shape(s))
+        r = shapefile.Reader(shape)
+        g=[]
+        for s in r.shapes(): 
+            g.append(pygeoif.geometry.as_shape(s))
 
-            m = pygeoif.MultiPoint(g)
+        m = pygeoif.MultiPoint(g)
 
-            wkt = str(m.wkt).replace("MULTIPOINT", "POLYGON(") + ")"
-
-            SubsetOp = snappy.jpy.get_type('org.esa.snap.core.gpf.common.SubsetOp') 
-
-            bounding_wkt = wkt
-
-            geometry = WKTReader().read(bounding_wkt)
-
-            HashMap = snappy.jpy.get_type('java.util.HashMap') 
-            GPF.getDefaultInstance().getOperatorSpiRegistry().loadOperatorSpis() 
-            parameters = HashMap()
-            parameters.put('copyMetadata', True)
-            parameters.put('geoRegion', geometry)
-
+        wkt = str(m.wkt).replace("MULTIPOINT", "POLYGON(") + ")"
         
+        shape_wkt = shapely.wkt.loads(wkt)
 
-            try:
-                product_subset = snappy.GPF.createProduct('Subset', parameters, product)
-                print("\napplying shapefile")
-                intersects = True
-            except:
-                print(f"Product and shapefile does not intersect for {name}")
-                intersects = False
+        contains = scene.contains(shape_wkt)
+        print(contains)
 
-            if intersects:
-                self.save_product(product_subset, name, save_path, type)
+        SubsetOp = snappy.jpy.get_type('org.esa.snap.core.gpf.common.SubsetOp') 
+
+        bounding_wkt = wkt
+
+        geometry = WKTReader().read(bounding_wkt)
+
+        HashMap = snappy.jpy.get_type('java.util.HashMap') 
+        GPF.getDefaultInstance().getOperatorSpiRegistry().loadOperatorSpis() 
+        parameters = HashMap()
+        parameters.put('copyMetadata', True)
+        parameters.put('geoRegion', geometry)
+
+        if contains.bool():
+            product_subset = snappy.GPF.createProduct('Subset', parameters, product)
+            print("\napplying shapefile")
+            self.save_product(product_subset, name, save_path, type)
+        """
+        try:
+            product_subset = snappy.GPF.createProduct('Subset', parameters, product)
+            print("\napplying shapefile")
+            intersects = True
+        except:
+            print(f"Product and shapefile does not intersect for {name}")
+            intersects = False
+
+        if intersects:
+            self.save_product(product_subset, name, save_path, type)
+        """
+        return bool(contains.bool())
 
     def clip_shapefile(self, source_shp, mask_shps, destination):
         src = gpd.read_file(source_shp)

@@ -64,6 +64,7 @@ if __name__ == '__main__':
         print("[INFO] processing...")
         pp = Preprocess()
 
+        
         if parser_main.getboolean('preprocess', 'clip_shapefile'):
             print('[INFO] Clipping shapefile ... ')
             src = '/localhome/studenter/mikaellv/Project/data/FBK_vann/FKB_vann.shp'
@@ -74,6 +75,7 @@ if __name__ == '__main__':
             extents = [extent_root+f+'/'+f+'.shp' for f in locations]
             pp.clip_shapefile(src,extents,dest)
             print('[INFO] Done.')
+         
 
         for file in os.listdir(download_path):
             if file.startswith("."): continue
@@ -94,13 +96,14 @@ if __name__ == '__main__':
                 if shape.startswith("."): continue
                 #subset = pp.add_shape_file(product, shapefile_path+shape+"/"+shape)
                 #pp.save_product(subset, shape+"_"+file, subset_path, "BEAM-DIMAP")
-                subset = pp.subset(product, shapefile_path+shape+"/"+shape, shape+"_"+file, subset_path, "BEAM-DIMAP")
-                logging.info(f"Subset {shape+'_'+file} saved")
+                subset = pp.subset(product, shapefile_path+shape+"/"+shape, shape+"_"+file, subset_path, GeoPos, "BEAM-DIMAP")
+                if subset: logging.info(f"Subset {shape+'_'+file} saved")
 
         for subset in os.listdir(subset_path):
+            if shape.endswith(".data"): continue
             logging.info(f"Subset {subset} read")
             subset_R = pp.read_product(subset_path+subset)
-            subset_O = pp.apply_orbit_file(subset_R)
+            subset_O = pp.apply_orbit_file(product=subset_R)
             logging.info(f"Orbitfile applied to {subset}")
             subset_O_TNR = pp.apply_thermal_noise_removal(subset_O)
             logging.info(f"Thermal noise removal for {subset} finished")
