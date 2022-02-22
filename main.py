@@ -7,7 +7,7 @@ import snappy
 import geopandas as gpd
 import pandas as pd
 from shapely.geometry import Polygon
-import jpy
+#import jpy
 from turtle import down
 import data.request as req
 from data.preprocessFunctions import Preprocess 
@@ -22,14 +22,14 @@ def geopos_to_wkt(geopos):
         long.append(e.lon)
     
     polygon_geom = Polygon(zip(long, lat))
-    print(polygon_geom)
+    #print(polygon_geom)
     crs = {'init': 'epsg:4326'}
     polygon = gpd.GeoDataFrame(crs=crs, geometry=[polygon_geom])       
-    print(polygon.geometry)
+    #print(polygon.geometry)
     #geometry = gpd.points_from_xy(long, lat, crs="EPSG:4326")
     #wkt = geometry.GeoSeries.to_wkt()
-    polygon.to_file(filename='polygon.shp', driver="ESRI Shapefile")
-    #return wkt
+    #polygon.to_file(filename='polygon.shp', driver="ESRI Shapefile")
+    return polygon
 
 
 
@@ -80,8 +80,8 @@ if __name__ == '__main__':
             GeoPos = snappy.ProductUtils.createGeoBoundary(product, 1)
             one = GeoPos[0]
             print(GeoPos[2000])
-            wkt = geopos_to_wkt(GeoPos)
-            print(wkt)
+            polygon = geopos_to_wkt(GeoPos)
+            print(polygon)
 
 
             logging.info(f"Product {file} read")
