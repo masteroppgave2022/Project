@@ -70,6 +70,7 @@ class Preprocess():
         #plt.figure(figsize=(width, height))
         #imgplot = plt.imshow(band_data, cmap=plt.cm.binary, vmin=vmin, vmax=vmax)
         plt.imshow(band_data, cmap=plt.cm.binary, vmin=vmin, vmax=vmax)
+        plt.show()
         #plt.show()
         #if plt.figimage != None:
         #    plt.savefig(figname)
@@ -182,12 +183,14 @@ class Preprocess():
         parameters.put('demResamplingMethod', 'BILINEAR_INTERPOLATION') 
         parameters.put('imgResamplingMethod', 'BILINEAR_INTERPOLATION')
         #parameters.put('demName', 'GETASSE30') #ASTER 1Sec GDEM SRTM 3Sec
+        parameters.put('saveSelectedSourceBand', True)
         parameters.put('demName', 'External DEM')
         parameters.put('externalDEMFile', '/localhome/studenter/renatask/Project/data/no/no.tif')
-        parameters.put('pixelSpacingInMeter', 10.0) 
+        parameters.put('pixelSpacingInMeter', 10.0)
+        parameters.put('nodataValueAtSea', False)
         #parameters.put('sourceBands', 'Sigma0_VV')
         terrain_corrected = GPF.createProduct("Terrain-Correction", parameters, product)
-
+    
         return terrain_corrected
 
     def terrain_flattening(self, product):
@@ -263,21 +266,23 @@ class Preprocess():
 
         if contains.bool():
             product_subset = snappy.GPF.createProduct('Subset', parameters, product)
-            print("\napplying shapefile")
-            self.save_product(product_subset, name, save_path, type)
-        """
-        try:
-            product_subset = snappy.GPF.createProduct('Subset', parameters, product)
-            print("\napplying shapefile")
-            intersects = True
-        except:
-            print(f"Product and shapefile does not intersect for {name}")
-            intersects = False
+            return product_subset
+        else: return None
+        #     print("\napplying shapefile")
+        #     self.save_product(product_subset, name, save_path, type)
+        # """
+        # try:
+        #     product_subset = snappy.GPF.createProduct('Subset', parameters, product)
+        #     print("\napplying shapefile")
+        #     intersects = True
+        # except:
+        #     print(f"Product and shapefile does not intersect for {name}")
+        #     intersects = False
 
-        if intersects:
-            self.save_product(product_subset, name, save_path, type)
-        """
-        return bool(contains.bool())
+        # if intersects:
+        #     self.save_product(product_subset, name, save_path, type)
+        # """
+        # return bool(contains.bool())
 
     def clip_shapefile(self, source_shp, mask_shps, destination):
         src = gpd.read_file(source_shp)

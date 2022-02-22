@@ -37,7 +37,7 @@ def geopos_to_wkt(geopos):
 if __name__ == '__main__':
     logging.basicConfig(filename='main_log.log', encoding='utf-8', level=logging.DEBUG, format='%(asctime)s %(levelname)s: %(message)s',  datefmt='%m/%d/%Y %H:%M:%S')
     parser_main = configparser.ConfigParser()
-    parser_main.read('/localhome/studenter/renatask/Project/main_config.ini')
+    parser_main.read('/localhome/studenter/mikaellv/Project/main_config.ini')
 
     download_path = parser_main['main']['download_path']
     shapefile_path = parser_main['main']['shapefile_path']
@@ -76,12 +76,11 @@ if __name__ == '__main__':
             pp.clip_shapefile(src,extents,dest)
             print('[INFO] Done.')
          
-
         for file in os.listdir(download_path):
             if file.startswith("."): continue
-            if file.startswith("S1A_IW_GRDH_1SDV_20210628"): continue
+            if file.startswith("S1A_IW_GRDH_1SDV"): continue
             if file.startswith("S1A"): continue
-            if file.startswith("S1B_IW_GRDH_1SDV_20200910T060300"): continue
+            if file.startswith("S1B_IW_GRDH_1SDV_20200627T053825_"): continue
             product = pp.read_product(download_path+file)
 
             GeoPos = snappy.ProductUtils.createGeoBoundary(product, 1)
@@ -90,30 +89,31 @@ if __name__ == '__main__':
             polygon = geopos_to_wkt(GeoPos)
             print(polygon)
 
-
+            
             logging.info(f"Product {file} read")
             for shape in os.listdir(shapefile_path):
                 if shape.startswith("."): continue
                 #subset = pp.add_shape_file(product, shapefile_path+shape+"/"+shape)
                 #pp.save_product(subset, shape+"_"+file, subset_path, "BEAM-DIMAP")
                 subset = pp.subset(product, shapefile_path+shape+"/"+shape, shape+"_"+file, subset_path, GeoPos, "BEAM-DIMAP")
-                if subset: logging.info(f"Subset {shape+'_'+file} saved")
+                if subset:
+                    # logging.info(f"Subset {shape+'_'+file} saved")
 
-        for subset in os.listdir(subset_path):
-            if subset.endswith(".data"): continue
-            if subset.startswith("."): continue
-            logging.info(f"Subset {subset} read")
-            subset_R = pp.read_product(subset_path+subset)
-            subset_O = pp.apply_orbit_file(product=subset_R)
-            logging.info(f"Orbitfile applied to {subset}")
-            subset_O_TNR = pp.apply_thermal_noise_removal(subset_O)
-            logging.info(f"Thermal noise removal for {subset} finished")
-            subset_O_TNR_C = pp.calibrate(subset_O_TNR)
-            logging.info(f"Calibration for {subset} finished")
-            subset_O_TNR_C_TC = pp.terrain_correction(subset_O_TNR_C)
-            logging.info(f"Terrain correction for {subset} finished")
-            pp.save_product(subset_O_TNR_C_TC, subset, save_path)
-            logging.info(f"Subset {subset} preprocessed and saved")
+        # for subset in os.listdir(subset_path):
+                # if subset.endswith(".data"): continue
+                # if subset.startswith("."): continue
+                # logging.info(f"Subset {subset} read")
+                # subset_R = pp.read_product(subset_path+subset)
+                    subset_O = pp.apply_orbit_file(product=subset)
+                    logging.info(f"Orbitfile applied to {subset}")
+                    subset_O_TNR = pp.apply_thermal_noise_removal(subset_O)
+                    logging.info(f"Thermal noise removal for {subset} finished")
+                    subset_O_TNR_C = pp.calibrate(subset_O_TNR)
+                    logging.info(f"Calibration for {subset} finished")
+                    subset_O_TNR_C_TC = pp.terrain_correction(subset_O_TNR_C)
+                    logging.info(f"Terrain correction for {subset} finished")
+                    pp.save_product(subset_O_TNR_C_TC, 'test', save_path)
+                    logging.info(f"Subset {subset} preprocessed and saved")
 
 
 
