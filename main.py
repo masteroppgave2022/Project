@@ -7,7 +7,7 @@ import snappy
 import geopandas as gpd
 import pandas as pd
 from shapely.geometry import Polygon
-import jpy
+# import jpy
 from turtle import down
 import data.request as req
 from data.preprocess_functions import Preprocess 

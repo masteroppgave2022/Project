@@ -5,11 +5,11 @@ and https://mygeoblog.com/2019/07/08/process-sentinel-1-with-snap-python-api/
 
 import logging
 import numpy as np
+import geopandas as gpd
 import matplotlib
 matplotlib.use("Qt5Agg")
 import matplotlib.pyplot as plt 
 import matplotlib.colors as colors 
-import geopandas as gpd
 import os
 import snappy
 from snappy import Product
@@ -210,29 +210,31 @@ class Preprocess():
         Type = "BEAM-DIMAP" for snap, else "GeoTIFF"
         """
 
-        r = shapefile.Reader(shape)
-        g=[]
-        for s in r.shapes(): 
-            g.append(pygeoif.geometry.as_shape(s))
-
-        m = pygeoif.MultiPoint(g)
-
-        wkt = str(m.wkt).replace("MULTIPOINT", "POLYGON(") + ")"
-
-        SubsetOp = snappy.jpy.get_type('org.esa.snap.core.gpf.common.SubsetOp') 
-
-        bounding_wkt = wkt
-
-        geometry = WKTReader().read(bounding_wkt)
-
-        HashMap = snappy.jpy.get_type('java.util.HashMap') 
-        GPF.getDefaultInstance().getOperatorSpiRegistry().loadOperatorSpis() 
-        parameters = HashMap()
-        parameters.put('copyMetadata', True)
-        parameters.put('geoRegion', geometry)
-
         with warnings.catch_warnings():
             warnings.simplefilter("error")
+
+            r = shapefile.Reader(shape)
+            g=[]
+            for s in r.shapes(): 
+                g.append(pygeoif.geometry.as_shape(s))
+
+            m = pygeoif.MultiPoint(g)
+
+            wkt = str(m.wkt).replace("MULTIPOINT", "POLYGON(") + ")"
+
+            SubsetOp = snappy.jpy.get_type('org.esa.snap.core.gpf.common.SubsetOp') 
+
+            bounding_wkt = wkt
+
+            geometry = WKTReader().read(bounding_wkt)
+
+            HashMap = snappy.jpy.get_type('java.util.HashMap') 
+            GPF.getDefaultInstance().getOperatorSpiRegistry().loadOperatorSpis() 
+            parameters = HashMap()
+            parameters.put('copyMetadata', True)
+            parameters.put('geoRegion', geometry)
+
+        
 
             try:
                 product_subset = snappy.GPF.createProduct('Subset', parameters, product)
