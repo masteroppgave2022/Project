@@ -183,7 +183,7 @@ class Preprocess():
         parameters.put('imgResamplingMethod', 'BILINEAR_INTERPOLATION')
         #parameters.put('demName', 'GETASSE30') #ASTER 1Sec GDEM SRTM 3Sec
         parameters.put('demName', 'External DEM')
-        parameters.put('externalDEMFile', 'no/no.tif')
+        parameters.put('externalDEMFile', '/localhome/studenter/renatask/Project/data/no/no.tif')
         parameters.put('pixelSpacingInMeter', 10.0) 
         #parameters.put('sourceBands', 'Sigma0_VV')
         terrain_corrected = GPF.createProduct("Terrain-Correction", parameters, product)

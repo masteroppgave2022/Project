@@ -100,7 +100,8 @@ if __name__ == '__main__':
                 if subset: logging.info(f"Subset {shape+'_'+file} saved")
 
         for subset in os.listdir(subset_path):
-            if shape.endswith(".data"): continue
+            if subset.endswith(".data"): continue
+            if subset.startswith("."): continue
             logging.info(f"Subset {subset} read")
             subset_R = pp.read_product(subset_path+subset)
             subset_O = pp.apply_orbit_file(product=subset_R)
