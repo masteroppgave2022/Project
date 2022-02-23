@@ -289,6 +289,7 @@ class Preprocess():
         src = gpd.read_file(source_shp)
         print("[INFO] Done reading, proceeding to clip ...")
         for mask in mask_shps:
+            print(f"[INFO] Clipping {os.path.split(mask)[1]}")
             output_name = os.path.split(mask)[1]
             out_path = destination+output_name.split('.')[0]+'/'
             if not os.path.exists(out_path):
@@ -305,15 +306,17 @@ class Preprocess():
             clipped = gpd.clip(src, extent)
             print("[INFO] Done clipping, checking for invalid geometries in dataframe ... ")
             for i,row in clipped.iterrows():
-                if type(row.geometry) == shapely.geometry.collection.GeometryCollection:
+                if (type(row.geometry) == shapely.geometry.collection.GeometryCollection)\
+                    or (type(row.geometry) == shapely.geometry.multilinestring.MultiLineString):
                     # get all polygons
                     shapes = []
                     for shape in row.geometry:
                         if type(shape) == shapely.geometry.polygon.Polygon: shapes.append(shape)
                     clipped.at[i, 'geometry'] = shapely.geometry.collection.GeometryCollection(shapes)
-            print("[INFO] Invalid geometries removed, writing shp file ...")
+            # raise Exception("Testing!")
+                
             clipped.to_file(out_path)
-            print(f"[INFO] 100% done with: {mask}!")
+            print(f"[INFO] 100% done with: {os.path.split(mask)[1]}!")
         
 
                 
@@ -371,7 +374,7 @@ if __name__=='__main__':
     """ Testing shp clipping method: """
     pp = Preprocess()
     src = '/localhome/studenter/mikaellv/Project/data/FKB_vann/FKB_vann.shp'
-    masks = ['/localhome/studenter/mikaellv/Project/data/shapefiles/roros/roros.shp']
+    masks = ['/localhome/studenter/mikaellv/Project/data/shapefiles/surnadal_lakes/surnadal_lakes.shp']
     dest = '/localhome/studenter/mikaellv/Project/data/untiled_masks/'
     pp.clip_shapefile(src,masks,dest)
     
