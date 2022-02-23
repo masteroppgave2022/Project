@@ -153,7 +153,7 @@ data/search_configs
 data/shapefiles
 data/testing
 data/NVE_LAKES
-data/shapefiles-old
+data/shapefiles-old/
 data/FKB-vann
 data/shapefiles/
 data/testing/
@@ -164,3 +164,5 @@ data/subset/
 data/untiled_masks/
 main_config.ini
 data/subsets/
+data/processed_downloads/
+data/processed_plots/
