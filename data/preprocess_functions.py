@@ -250,7 +250,7 @@ class Preprocess():
         shape_wkt = shapely.wkt.loads(wkt)
 
         contains = scene.contains(shape_wkt)
-        print(contains)
+        # print(contains)
 
         SubsetOp = snappy.jpy.get_type('org.esa.snap.core.gpf.common.SubsetOp') 
 
@@ -285,7 +285,9 @@ class Preprocess():
         # return bool(contains.bool())
 
     def clip_shapefile(self, source_shp, mask_shps, destination):
+        print("[INFO] Reading FKB_vann ...")
         src = gpd.read_file(source_shp)
+        print("[INFO] Done reading, proceeding to clip ...")
         for mask in mask_shps:
             output_name = os.path.split(mask)[1]
             out_path = destination+output_name.split('.')[0]+'/'
@@ -293,15 +295,26 @@ class Preprocess():
                 os.makedirs(out_path)
                 out_path = out_path+output_name
                 extent = gpd.read_file(mask)
-                # Check CRS:
-                if not src.crs == extent.crs:
-                    print(f"[SKIPPING] CRS of source SHP and mask SHP: {mask} are not the same.")
-                    continue
-                else:
-                    clipped = gpd.clip(src, extent)
-                    clipped.to_file(out_path)
             else:
                 print("[SKIPPING] ... Clipped SHP already exists.")
+                continue
+                # Check CRS:
+            if not src.crs == extent.crs:
+                print(f"[SKIPPING] CRS of source SHP and mask SHP: {mask} are not the same.")
+                continue
+            clipped = gpd.clip(src, extent)
+            print("[INFO] Done clipping, checking for invalid geometries in dataframe ... ")
+            for i,row in clipped.iterrows():
+                if type(row.geometry) == shapely.geometry.collection.GeometryCollection:
+                    # get all polygons
+                    shapes = []
+                    for shape in row.geometry:
+                        if type(shape) == shapely.geometry.polygon.Polygon: shapes.append(shape)
+                    clipped.at[i, 'geometry'] = shapely.geometry.collection.GeometryCollection(shapes)
+            print("[INFO] Invalid geometries removed, writing shp file ...")
+            clipped.to_file(out_path)
+            print(f"[INFO] 100% done with: {mask}!")
+        
 
                 
             
@@ -311,48 +324,54 @@ class Preprocess():
 
 if __name__=='__main__':
     """ Just for testing purposes: """
-    prosess = Preprocess()
+    # prosess = Preprocess()
     
-    product = prosess.read_product("unprocessed_downloads/S1B_IW_GRDH_1SDV_20200910T060300_20200910T060325_023309_02C443_0BCF.zip")
+    # product = prosess.read_product("unprocessed_downloads/S1B_IW_GRDH_1SDV_20200910T060300_20200910T060325_023309_02C443_0BCF.zip")
 
-    info = prosess.get_product_info(product)
+    # info = prosess.get_product_info(product)
 
-    print(info)
-    prosess.plotBand(product, "Intensity_VV", 0, 100000, "testimage2.png")
+    # print(info)
+    # prosess.plotBand(product, "Intensity_VV", 0, 100000, "testimage2.png")
 
-    subset = prosess.add_shape_file(product,"shapefiles/molde/molde.shp")
-    prosess.plotBand(subset, "Intensity_VV", 0, 100000) #"subset2.png"
+    # subset = prosess.add_shape_file(product,"shapefiles/molde/molde.shp")
+    # prosess.plotBand(subset, "Intensity_VV", 0, 100000) #"subset2.png"
 
-    product = prosess.apply_orbit_file(product)
-    prosess.plotBand(product, "Intensity_VV", 0, 100000, "testimage_orbit2.png")
+    # product = prosess.apply_orbit_file(product)
+    # prosess.plotBand(product, "Intensity_VV", 0, 100000, "testimage_orbit2.png")
 
-    product = prosess.apply_thermal_noise_removal(product)
-    prosess.plotBand(product, "Intensity_VV", 0, 100000, "testimage_thermalnoise2.png")
+    # product = prosess.apply_thermal_noise_removal(product)
+    # prosess.plotBand(product, "Intensity_VV", 0, 100000, "testimage_thermalnoise2.png")
 
-    product = prosess.calibrate(product)
-    prosess.plotBand(product, "Beta0_VV", 0, 1, "testimage_calibrate2.png")
+    # product = prosess.calibrate(product)
+    # prosess.plotBand(product, "Beta0_VV", 0, 1, "testimage_calibrate2.png")
 
-    product = prosess.speckle_filter(product)
-    prosess.plotBand(product, "Beta0_VV", 0, 1, "testimage_speckle2.png")
+    # product = prosess.speckle_filter(product)
+    # prosess.plotBand(product, "Beta0_VV", 0, 1, "testimage_speckle2.png")
 
-    info = prosess.get_product_info(product)
+    # info = prosess.get_product_info(product)
 
-    print(info)
+    # print(info)
 
-    #product = prosess.terrain_flattening(product)
-    #prosess.plotBand(product, "Gamma0_VV", 0, 0.1, "testimage_terrainflattened2.png")
+    # #product = prosess.terrain_flattening(product)
+    # #prosess.plotBand(product, "Gamma0_VV", 0, 0.1, "testimage_terrainflattened2.png")
 
-    product = prosess.terrain_correction(product)
-    prosess.plotBand(product, "Beta0_VV", 0, 0.1, "testimage_terraincorrected2.png")
+    # product = prosess.terrain_correction(product)
+    # prosess.plotBand(product, "Beta0_VV", 0, 0.1, "testimage_terraincorrected2.png")
 
-    info = prosess.get_product_info(product)
+    # info = prosess.get_product_info(product)
 
-    print(info)
+    # print(info)
 
-    subset = prosess.add_shape_file(product,"shapefiles/molde2/mol2.shp")
-    prosess.plotBand(subset, "Beta0_VV", 0, 0.1, "subset222.png")
+    # subset = prosess.add_shape_file(product,"shapefiles/molde2/mol2.shp")
+    # prosess.plotBand(subset, "Beta0_VV", 0, 0.1, "subset222.png")
 
-    subset = prosess.add_shape_file(product,"shapefiles/molde/molde.shp")
-    prosess.plotBand(subset, "Beta0_VV", 0, 0.1, "subset22.png")
+    # subset = prosess.add_shape_file(product,"shapefiles/molde/molde.shp")
+    # prosess.plotBand(subset, "Beta0_VV", 0, 0.1, "subset22.png")
 
+    """ Testing shp clipping method: """
+    pp = Preprocess()
+    src = '/localhome/studenter/mikaellv/Project/data/FKB_vann/FKB_vann.shp'
+    masks = ['/localhome/studenter/mikaellv/Project/data/shapefiles/roros/roros.shp']
+    dest = '/localhome/studenter/mikaellv/Project/data/untiled_masks/'
+    pp.clip_shapefile(src,masks,dest)
     
