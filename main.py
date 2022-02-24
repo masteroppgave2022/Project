@@ -103,7 +103,7 @@ if __name__ == '__main__':
                 # if subset.startswith("."): continue
                 # logging.info(f"Subset {subset} read")
                 # subset_R = pp.read_product(subset_path+subset)
-                    subset_O = pp.apply_orbit_file(product=subset)
+                    subset_O = pp.apply_orbit_file(subset)
                     logging.info(f"Orbitfile applied to {subset}")
                     subset_O_TNR = pp.apply_thermal_noise_removal(subset_O)
                     logging.info(f"Thermal noise removal for {subset} finished")
