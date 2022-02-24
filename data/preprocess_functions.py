@@ -70,7 +70,7 @@ class Preprocess():
         #plt.figure(figsize=(width, height))
         #imgplot = plt.imshow(band_data, cmap=plt.cm.binary, vmin=vmin, vmax=vmax)
         plt.imshow(band_data, cmap=plt.cm.binary, vmin=vmin, vmax=vmax)
-        #plt.show()
+        plt.show()
         #if plt.figimage != None:
         #    plt.savefig(figname)
         #else:
@@ -247,7 +247,7 @@ class Preprocess():
         shape_wkt = shapely.wkt.loads(wkt)
 
         contains = scene.contains(shape_wkt)
-        print(contains)
+        #print(contains)
 
         SubsetOp = snappy.jpy.get_type('org.esa.snap.core.gpf.common.SubsetOp') 
 

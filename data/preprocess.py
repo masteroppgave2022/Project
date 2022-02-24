@@ -2,7 +2,7 @@ import matplotlib
 matplotlib.use("Qt5Agg")
 import matplotlib.pyplot as plt
 
-from preprocessFunctions import Preprocess
+from preprocess_functions import Preprocess
 
 import logging
 
@@ -11,7 +11,7 @@ if __name__=='__main__':
     prosess = Preprocess()
 
     logging.info("process started")
-    product = prosess.read_product("unprocessed_downloads/S1B_IW_GRDH_1SDV_20200910T060300_20200910T060325_023309_02C443_0BCF.zip")
+    product = prosess.read_product("/localhome/studenter/renatask/Project/data/unprocessed_downloads/S1B_IW_GRDH_1SDV_20200910T060300_20200910T060325_023309_02C443_0BCF.zip")
 
     info = prosess.get_product_info(product)
 
@@ -19,7 +19,7 @@ if __name__=='__main__':
 
     logging.info(info)
 
-    subset = prosess.add_shape_file(product,"shapefiles-old/molde/molde.shp")
+    subset = prosess.add_shape_file(product,"/localhome/studenter/renatask/Project/data/shapefiles-old/molde/molde.shp")
     #prosess.plotBand(subset, "Intensity_VV", 0, 100000)
 
     ######### Orbitfile
@@ -64,7 +64,7 @@ if __name__=='__main__':
     ######### Terrain Correction
 
     logging.warning("Terrain correction will take some time.....")
-    """
+    
     subset_TC = prosess.terrain_correction(subset_C)
 
     info = prosess.get_product_info(subset_TC)
@@ -80,7 +80,7 @@ if __name__=='__main__':
     prosess.plotBand(subset_TC, "Sigma0_VV", 0, 0.5)
     plt.title("Sigma0_VV")
     plt.show()
-     """
+    
     logging.info("Finished")
 
     

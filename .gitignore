@@ -164,3 +164,5 @@ data/subset/
 data/untiled_masks/
 main_config.ini
 data/subsets
+data/processed_downloads
+data/shapefiles-old

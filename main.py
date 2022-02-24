@@ -80,8 +80,8 @@ if __name__ == '__main__':
         for file in os.listdir(download_path):
             if file.startswith("."): continue
             if file.startswith("S1A_IW_GRDH_1SDV_20210628"): continue
-            if file.startswith("S1A"): continue
-            if file.startswith("S1B_IW_GRDH_1SDV_20200910T060300"): continue
+            #if file.startswith("S1A"): continue
+            #if file.startswith("S1B_IW_GRDH_1SDV_20200910T060300"): continue
             product = pp.read_product(download_path+file)
 
             GeoPos = snappy.ProductUtils.createGeoBoundary(product, 1)
@@ -94,6 +94,7 @@ if __name__ == '__main__':
             logging.info(f"Product {file} read")
             for shape in os.listdir(shapefile_path):
                 if shape.startswith("."): continue
+                if shape+"_"+file+".dim" in os.listdir(subset_path): continue
                 #subset = pp.add_shape_file(product, shapefile_path+shape+"/"+shape)
                 #pp.save_product(subset, shape+"_"+file, subset_path, "BEAM-DIMAP")
                 subset = pp.subset(product, shapefile_path+shape+"/"+shape, shape+"_"+file, subset_path, GeoPos, "BEAM-DIMAP")
@@ -102,6 +103,18 @@ if __name__ == '__main__':
         for subset in os.listdir(subset_path):
             if subset.endswith(".data"): continue
             if subset.startswith("."): continue
+            if subset+".tif" in os.listdir(save_path): continue
+            #if subset.startswith("gaula"): continue
+            #if subset.startswith("melhus"): continue
+            #if subset.startswith("orkanger"): continue
+            #if subset.startswith("trollheimen"): continue
+            if subset.startswith("røros"): continue
+            if subset.startswith("åndalsnes"): continue
+            #if subset.startswith("orkla"): continue
+            if subset.startswith("otta"): continue
+            if subset.startswith("rauma"): continue
+            if subset.startswith("surna"): continue
+            if subset.startswith("surnaldal"): continue
             logging.info(f"Subset {subset} read")
             subset_R = pp.read_product(subset_path+subset)
             subset_O = pp.apply_orbit_file(product=subset_R)
@@ -112,6 +125,7 @@ if __name__ == '__main__':
             logging.info(f"Calibration for {subset} finished")
             subset_O_TNR_C_TC = pp.terrain_correction(subset_O_TNR_C)
             logging.info(f"Terrain correction for {subset} finished")
+            #pp.plotBand(subset_O_TNR_C_TC, "Sigma0_VH", 0, 0.1)
             pp.save_product(subset_O_TNR_C_TC, subset, save_path)
             logging.info(f"Subset {subset} preprocessed and saved")
 
