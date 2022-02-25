@@ -169,7 +169,7 @@ data/shapefiles-old
 data/subsets/
 data/processed_downloads/
 data/processed_plots/
-main_config.int
+main_config.ini
 data/DEM_merge
 data/dtm10
 data/DEM
