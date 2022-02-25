@@ -56,6 +56,8 @@ if __name__ == '__main__':
         
         for file in os.listdir(download_path):
             if file.startswith("."): continue
+            if file.startswith("S1B_IW_GRDH_1SDV_2021"): continue
+            if file.startswith("S1A_IW_GRDH_1SDV_2021"): continue
             product = pp.read_product(download_path+file)
             GeoPos = snappy.ProductUtils.createGeoBoundary(product, 1)
             logging.info(f"Product {file} read")
@@ -69,8 +71,12 @@ if __name__ == '__main__':
                 if subset: logging.info(f"Subset {shape+'_'+file} created")
 
                 if subset:
-                    subset_O = pp.apply_orbit_file(product=subset)
-                    logging.info(f"Orbitfile applied to {name}")
+                    try:
+                        subset_O = pp.apply_orbit_file(product=subset)
+                        logging.info(f"Orbitfile applied to {name}")
+                    except:
+                        logging.info(f"Orbit file failed/not found for {name}, skipping.")
+                        continue
                     subset_O_TNR = pp.apply_thermal_noise_removal(subset_O)
                     logging.info(f"Thermal noise removal for {name} finished")
                     subset_O_TNR_C = pp.calibrate(subset_O_TNR)
@@ -79,7 +85,7 @@ if __name__ == '__main__':
                     logging.info(f"Terrain correction for {name} finished")
                     # pp.plotBand(subset_O_TNR_C_TC, "Sigma0_VH", 0, 0.1)
                     pp.save_product(subset_O_TNR_C_TC, name, save_path)
-                    pp.clip_raster(save_path+name+'.tif',shape,save_path,name.split('.')[0])
+                    pp.clip_raster(save_path+name+'.tif',shapefile_path+shape,save_path,name.split('.')[0])
                     logging.info(f"Subset {name} preprocessed and saved")
                     
 

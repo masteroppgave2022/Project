@@ -74,10 +74,8 @@ class requestDownload(searchConstants):
             print(f"Search parameters:\n{self.search_params}\n")
             self.scenes_to_download.extend(self.append_search_results())
         if len(self.scenes_to_download) != 0:
-            download = input(f"Total of {len(self.scenes_to_download)} images found, proceed to download [y/n]? ")
-            if download.lower() == 'y':
-                results = asf.product_search(self.scenes_to_download)
-                self.download(results=results)
+            results = asf.product_search(self.scenes_to_download)
+            self.download(results=results)
         else:
             print(f"[ABORTING] Total of {len(self.scenes_to_download)} images found.")
 
@@ -129,6 +127,7 @@ class requestDownload(searchConstants):
         scenes_to_download = []
         for result in metadata['features']:
             r = result['properties']['fileName']
+            print(r)
             if r in existing_rasters and r not in self.scenes_to_download:
                 print("Raster already downloaded ------> SKIPPING")
             else:
@@ -142,7 +141,7 @@ class requestDownload(searchConstants):
         results.download(
         path='data/unprocessed_downloads/',
         session=self.session,
-        processes=8
+        processes=1
         )
         
 
