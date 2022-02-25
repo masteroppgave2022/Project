@@ -16,7 +16,7 @@ from data.preprocess_functions import Preprocess
 if __name__ == '__main__':
     logging.basicConfig(filename='main_log.log', encoding='utf-8', level=logging.DEBUG, format='%(asctime)s %(levelname)s: %(message)s',  datefmt='%m/%d/%Y %H:%M:%S')
     parser_main = configparser.ConfigParser()
-    parser_main.read('/localhome/studenter/renatask/Project/main_config.ini')
+    parser_main.read('/localhome/studenter/mikaellv/Project/main_config.ini')
     root = parser_main['main']['root']
     download_path = parser_main['main']['download_path']
     shapefile_path = parser_main['main']['shapefile_path']
