@@ -4,6 +4,7 @@ and https://mygeoblog.com/2019/07/08/process-sentinel-1-with-snap-python-api/
 """
 
 import logging
+import sre_parse
 import numpy as np
 import geopandas as gpd
 import matplotlib
@@ -25,9 +26,11 @@ import shapefile
 import pygeoif
 
 import geopandas as gpd
+import rioxarray as rxr
 import pandas as pd
 from shapely.geometry import Polygon
 import shapely
+from osgeo import ogr,osr,gdal
 
 class Preprocess():
     def __init__(self, path_to_data="") -> None:
@@ -181,11 +184,9 @@ class Preprocess():
         parameters = HashMap() 
         parameters.put('demResamplingMethod', 'BILINEAR_INTERPOLATION') 
         parameters.put('imgResamplingMethod', 'BILINEAR_INTERPOLATION')
-        #parameters.put('demName', 'GETASSE30') #ASTER 1Sec GDEM SRTM 3Sec
-        #parameters.put('demName', 'SRTM 1Sec HGT') #ASTER 1Sec GDEM SRTM 3Sec
+        # parameters.put('demName', 'ASTER 1sec GDEM') #ASTER 1Sec GDEM SRTM 3Sec
         parameters.put('saveSelectedSourceBand', True)
         parameters.put('demName', 'External DEM')
-        #parameters.put('externalDEMFile', '/localhome/studenter/renatask/Project/data/no/no_reproj.tif')
         parameters.put('externalDEMFile', '/localhome/studenter/renatask/Project/data/DEM_merge/DEM_merge.tif')
         parameters.put('pixelSpacingInMeter', 10.0)
         parameters.put('nodataValueAtSea', False)
@@ -223,7 +224,7 @@ class Preprocess():
         
         polygon_geom = Polygon(zip(long, lat))
         #print(polygon_geom)
-        #crs = {'init': 'epsg:4326'}
+        # crs = {'init': 'epsg:4326'}
         polygon = gpd.GeoDataFrame(crs='epsg:4326', geometry=[polygon_geom])       
         #print(polygon.geometry)
         #geometry = gpd.points_from_xy(long, lat, crs="EPSG:4326")
@@ -318,7 +319,14 @@ class Preprocess():
                 
             clipped.to_file(out_path)
             print(f"[INFO] 100% done with: {os.path.split(mask)[1]}!")
-        
+
+    def clip_raster(self, gtiff_raster, shp, out_path, name):
+        raster = rxr.open_rasterio(gtiff_raster,masked=True).squeeze()
+        shape = gpd.read_file(shp)
+        clipped = raster.rio.clip(shape.geometry.apply(shapely.geometry.mapping),shape.crs)
+        clipped.rio.to_raster(out_path+'/'+name+'.tif')
+
+
 
                 
             
@@ -372,10 +380,16 @@ if __name__=='__main__':
     # subset = prosess.add_shape_file(product,"shapefiles/molde/molde.shp")
     # prosess.plotBand(subset, "Beta0_VV", 0, 0.1, "subset22.png")
 
-    """ Testing shp clipping method: """
+    # """ Testing shp clipping method: """
+    # pp = Preprocess()
+    # src = '/localhome/studenter/mikaellv/Project/data/FKB_vann/FKB_vann.shp'
+    # masks = ['/localhome/studenter/mikaellv/Project/data/shapefiles/surnadal_lakes/surnadal_lakes.shp']
+    # dest = '/localhome/studenter/mikaellv/Project/data/untiled_masks/'
+    # pp.clip_shapefile(src,masks,dest)
+
+    """ Testing raster clipping """
     pp = Preprocess()
-    src = '/localhome/studenter/mikaellv/Project/data/FKB_vann/FKB_vann.shp'
-    masks = ['/localhome/studenter/mikaellv/Project/data/shapefiles/surnadal_lakes/surnadal_lakes.shp']
-    dest = '/localhome/studenter/mikaellv/Project/data/untiled_masks/'
-    pp.clip_shapefile(src,masks,dest)
+    raster = '/localhome/studenter/mikaellv/Project/data/processed_downloads/melhus_lakes_S1B_IW_GRDH_1SDV_20200627T053825_20200627T053850_022215_02A297_D3A3.zip.dim.tif'
+    shp = '/localhome/studenter/mikaellv/Project/data/shapefiles/melhus_lakes/melhus_lakes.shp'
+    pp.clip_raster(raster, shp)
     

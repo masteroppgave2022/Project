@@ -4,6 +4,7 @@ import subprocess
 import configparser
 import multiprocessing
 import snappy
+from snappy import ProductIO
 import geopandas as gpd
 import pandas as pd
 from shapely.geometry import Polygon
@@ -11,7 +12,6 @@ from shapely.geometry import Polygon
 from turtle import down
 import data.request as req
 from data.preprocess_functions import Preprocess 
-
 
 if __name__ == '__main__':
     logging.basicConfig(filename='main_log.log', encoding='utf-8', level=logging.DEBUG, format='%(asctime)s %(levelname)s: %(message)s',  datefmt='%m/%d/%Y %H:%M:%S')
@@ -56,7 +56,9 @@ if __name__ == '__main__':
         
         for file in os.listdir(download_path):
             if file.startswith("."): continue
-            if file.startswith("S1A_IW_GRDH_1SDV_20210628"): continue
+            if file.startswith("S1A"): continue
+            if file.startswith("S1A_IW_GRDH_1SDV_20220111T170330"): continue
+            if file.startswith("S1B_IW_GRDH_1SDV_20200910T060300"): continue
             #if file.startswith("S1A"): continue
             #if file.startswith("S1B_IW_GRDH_1SDV_20200910T060300"): continue
             product = pp.read_product(download_path+file)

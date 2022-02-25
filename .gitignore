@@ -161,6 +161,7 @@ data/FKB-vann/
 data/FKB_vann/
 data/subset/
 data/untiled_masks/
+data/untiled_rasters/
 main_config.ini
 data/subsets
 data/processed_downloads
@@ -170,3 +171,5 @@ data/processed_downloads/
 data/processed_plots/
 main_config.int
 data/DEM_merge
+data/dtm10
+data/DEM
