@@ -182,9 +182,11 @@ class Preprocess():
         parameters.put('demResamplingMethod', 'BILINEAR_INTERPOLATION') 
         parameters.put('imgResamplingMethod', 'BILINEAR_INTERPOLATION')
         #parameters.put('demName', 'GETASSE30') #ASTER 1Sec GDEM SRTM 3Sec
+        #parameters.put('demName', 'SRTM 1Sec HGT') #ASTER 1Sec GDEM SRTM 3Sec
         parameters.put('saveSelectedSourceBand', True)
         parameters.put('demName', 'External DEM')
-        parameters.put('externalDEMFile', '/localhome/studenter/renatask/Project/data/no/no.tif')
+        #parameters.put('externalDEMFile', '/localhome/studenter/renatask/Project/data/no/no_reproj.tif')
+        parameters.put('externalDEMFile', '/localhome/studenter/renatask/Project/data/DEM_merge/DEM_merge.tif')
         parameters.put('pixelSpacingInMeter', 10.0)
         parameters.put('nodataValueAtSea', False)
         #parameters.put('sourceBands', 'Sigma0_VV')
@@ -221,8 +223,8 @@ class Preprocess():
         
         polygon_geom = Polygon(zip(long, lat))
         #print(polygon_geom)
-        crs = {'init': 'epsg:4326'}
-        polygon = gpd.GeoDataFrame(crs=crs, geometry=[polygon_geom])       
+        #crs = {'init': 'epsg:4326'}
+        polygon = gpd.GeoDataFrame(crs='epsg:4326', geometry=[polygon_geom])       
         #print(polygon.geometry)
         #geometry = gpd.points_from_xy(long, lat, crs="EPSG:4326")
         #wkt = geometry.GeoSeries.to_wkt()

@@ -13,31 +13,10 @@ import data.request as req
 from data.preprocess_functions import Preprocess 
 
 
-def geopos_to_wkt(geopos):
-    lat = []
-    long =[]
-
-    for e in geopos:
-        lat.append(e.lat)
-        long.append(e.lon)
-    
-    polygon_geom = Polygon(zip(long, lat))
-    #print(polygon_geom)
-    crs = {'init': 'epsg:4326'}
-    polygon = gpd.GeoDataFrame(crs=crs, geometry=[polygon_geom])       
-    #print(polygon.geometry)
-    #geometry = gpd.points_from_xy(long, lat, crs="EPSG:4326")
-    #wkt = geometry.GeoSeries.to_wkt()
-    #polygon.to_file(filename='polygon.shp', driver="ESRI Shapefile")
-    return polygon
-
-
-
-
 if __name__ == '__main__':
     logging.basicConfig(filename='main_log.log', encoding='utf-8', level=logging.DEBUG, format='%(asctime)s %(levelname)s: %(message)s',  datefmt='%m/%d/%Y %H:%M:%S')
     parser_main = configparser.ConfigParser()
-    parser_main.read('/localhome/studenter/mikaellv/Project/main_config.ini')
+    parser_main.read('/localhome/studenter/renatask/Project/main_config.ini')
     root = parser_main['main']['root']
     download_path = parser_main['main']['download_path']
     shapefile_path = parser_main['main']['shapefile_path']
@@ -81,12 +60,8 @@ if __name__ == '__main__':
             #if file.startswith("S1A"): continue
             #if file.startswith("S1B_IW_GRDH_1SDV_20200910T060300"): continue
             product = pp.read_product(download_path+file)
-
             GeoPos = snappy.ProductUtils.createGeoBoundary(product, 1)
-            one = GeoPos[0]
-            print(GeoPos[2000])
-            polygon = geopos_to_wkt(GeoPos)
-            print(polygon)
+            
 
             
             logging.info(f"Product {file} read")
@@ -99,34 +74,35 @@ if __name__ == '__main__':
                 subset = pp.subset(product, shapefile_path+shape+"/"+shape, shape+"_"+file, subset_path, GeoPos, "BEAM-DIMAP")
                 if subset: logging.info(f"Subset {shape+'_'+file} saved")
 
-            #for subset in os.listdir(subset_path):
-                #if subset.endswith(".data"): continue
-                #if subset.startswith("."): continue
-                #if subset+".tif" in os.listdir(save_path): continue
-                #if subset.startswith("gaula"): continue
-                #if subset.startswith("melhus"): continue
-                #if subset.startswith("orkanger"): continue
-                #if subset.startswith("trollheimen"): continue
-                #if subset.startswith("røros"): continue
-                #if subset.startswith("åndalsnes"): continue
-                #if subset.startswith("orkla"): continue
-                #if subset.startswith("otta"): continue
-                #if subset.startswith("rauma"): continue
-                #if subset.startswith("surna"): continue
-                #if subset.startswith("surnaldal"): continue
-                #logging.info(f"Subset {subset} read")
-                #subset_R = pp.read_product(subset_path+subset)
-                subset_O = pp.apply_orbit_file(product=subset)
-                logging.info(f"Orbitfile applied to {name}")
-                subset_O_TNR = pp.apply_thermal_noise_removal(subset_O)
-                logging.info(f"Thermal noise removal for {name} finished")
-                subset_O_TNR_C = pp.calibrate(subset_O_TNR)
-                logging.info(f"Calibration for {name} finished")
-                subset_O_TNR_C_TC = pp.terrain_correction(subset_O_TNR_C)
-                logging.info(f"Terrain correction for {name} finished")
-                #pp.plotBand(subset_O_TNR_C_TC, "Sigma0_VH", 0, 0.1)
-                pp.save_product(subset_O_TNR_C_TC, subset, save_path)
-                logging.info(f"Subset {name} preprocessed and saved")
+                if subset:
+                #for subset in os.listdir(subset_path):
+                    #if subset.endswith(".data"): continue
+                    #if subset.startswith("."): continue
+                    #if subset+".tif" in os.listdir(save_path): continue
+                    #if subset.startswith("gaula"): continue
+                    #if subset.startswith("melhus"): continue
+                    #if subset.startswith("orkanger"): continue
+                    #if subset.startswith("trollheimen"): continue
+                    #if subset.startswith("røros"): continue
+                    #if subset.startswith("åndalsnes"): continue
+                    #if subset.startswith("orkla"): continue
+                    #if subset.startswith("otta"): continue
+                    #if subset.startswith("rauma"): continue
+                    #if subset.startswith("surna"): continue
+                    #if subset.startswith("surnaldal"): continue
+                    #logging.info(f"Subset {subset} read")
+                    #subset_R = pp.read_product(subset_path+subset)
+                    subset_O = pp.apply_orbit_file(product=subset)
+                    logging.info(f"Orbitfile applied to {name}")
+                    subset_O_TNR = pp.apply_thermal_noise_removal(subset_O)
+                    logging.info(f"Thermal noise removal for {name} finished")
+                    subset_O_TNR_C = pp.calibrate(subset_O_TNR)
+                    logging.info(f"Calibration for {name} finished")
+                    subset_O_TNR_C_TC = pp.terrain_correction(subset_O_TNR_C)
+                    logging.info(f"Terrain correction for {name} finished")
+                    pp.plotBand(subset_O_TNR_C_TC, "Sigma0_VH", 0, 0.1)
+                    pp.save_product(subset_O_TNR_C_TC, name, save_path)
+                    logging.info(f"Subset {name} preprocessed and saved")
 
 
 

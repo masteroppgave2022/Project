@@ -169,3 +169,4 @@ data/subsets/
 data/processed_downloads/
 data/processed_plots/
 main_config.int
+data/DEM_merge
