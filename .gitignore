@@ -173,5 +173,9 @@ main_config.ini
 data/DEM_merge
 data/dtm10
 data/DEM
+data/processed_masks/
 main_config.ini
 main_config.ini
+data/datasets/
+data/tiled_images/
+data/tiled_masks/

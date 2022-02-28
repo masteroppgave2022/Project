@@ -9,6 +9,7 @@ import geopandas as gpd
 import pandas as pd
 from shapely.geometry import Polygon
 #import jpy
+import data.build_data as bd
 from turtle import down
 import data.request as req
 from data.preprocess_functions import Preprocess 
@@ -23,7 +24,7 @@ if __name__ == '__main__':
     subset_path = parser_main['main']['subset_path']
     save_path = parser_main['main']['save_path']
 
-    if parser_main.getboolean('main','download'): # Download True/False
+    if parser_main.getboolean('main','download'):
         user = parser_main['download']['username']
         pw = parser_main['download']['password']
         search_configs = root+'search_configs/'
@@ -56,11 +57,13 @@ if __name__ == '__main__':
         
         for file in os.listdir(download_path):
             if file.startswith("."): continue
-            if file.startswith("S1B_IW_GRDH_1SDV_2021"): continue
-            if file.startswith("S1A_IW_GRDH_1SDV_2021"): continue
             product = pp.read_product(download_path+file)
-            GeoPos = snappy.ProductUtils.createGeoBoundary(product, 1)
-            logging.info(f"Product {file} read")
+            try:
+                GeoPos = snappy.ProductUtils.createGeoBoundary(product, 1)
+                logging.info(f"Product {file} read")
+            except:
+                logging.info(f"Java NullPointerException, skipping...")
+                continue
             for shape in os.listdir(shapefile_path):
                 if shape.startswith("."): continue
                 if shape+"_"+file+".tif" in os.listdir(save_path): continue
@@ -87,6 +90,37 @@ if __name__ == '__main__':
                     pp.save_product(subset_O_TNR_C_TC, name, save_path)
                     pp.clip_raster(save_path+name+'.tif',shapefile_path+shape,save_path,name.split('.')[0])
                     logging.info(f"Subset {name} preprocessed and saved")
+    
+    if parser_main.getboolean('main','build_data'):
+        """ Convert SHP to GTIFF Files """
+        logging.info("Converting shapefiles to GTiff rasters ...")
+        mask_shp_paths = root + 'untiled_masks/'
+        shp_paths = [mask_shp_paths+l+'/'+l+'.shp' for l in os.listdir(shapefile_path) if not l.startswith('.')]
+        out_path = 'data/processed_masks/'
+        for shp in shp_paths:
+            bd.shp_to_gtiff(path_to_shp=shp,out_path=out_path)
+
+        if parser_main.getboolean('build_data','tile_images'):
+            image_root = root+'processed_downloads/'
+            tiled_root = root+'tiled_images/'
+            image_paths = [image_root+img for img in os.listdir(image_root) if not img.startswith('.')]
+            for image in image_paths:
+                name = os.path.split(image)[1].split('.')[0]
+                out_path = tiled_root+name+'/'
+                if os.path.exists(out_path): continue
+                os.makedirs(out_path)
+                bd.tile_write(image_path=image, output_path=out_path)
+
+        if parser_main.getboolean('build_data','tile_masks'):
+            mask_root = root+'processed_masks/'
+            tiled_root = root+'tiled_masks/'
+            mask_paths = [mask_root+m for m in os.listdir(mask_root) if not m.startswith('.')]
+            for mask in mask_paths:
+                name = os.path.split(mask)[1].split('.')[0]
+                out_path = tiled_root+name+'/'
+                if os.path.exists(out_path): continue
+                os.makedirs(out_path)
+                bd.tile_write(image_path=mask, output_path=out_path)
                     
 
 
