@@ -1,5 +1,6 @@
 from configparser import Interpolation
 import os
+from black import TRANSFORMED_MAGICS
 from matplotlib.colors import Normalize
 #from cv2 import norm
 import numpy as np
@@ -17,6 +18,10 @@ import earthpy as et
 import earthpy.spatial as es
 import earthpy.plot as ep
 import math
+
+import georaster
+from osgeo import gdal
+
 
 def plot(image_path, mask_path):
     img_arr = rasterio.open(image_path).read()#*10
@@ -41,6 +46,8 @@ def LoadImage(image_path, mask_path):
 
     for i in image:
         for e in i:
+        #for e in range(len(i)):
+    #        if math.isnan(i[e]): i[e]=0
             for a in range(len(e)):
                 if math.isnan(e[a]): e[a]=0
 
@@ -63,13 +70,16 @@ def plotMaskedImage(image, mask):
     print(image[1])
     fig, axs = plt.subplots(1, 3, figsize=(25,25))
     plt.tight_layout()
-    #axs[0].imshow(image[:, :, 2], cmap='hot', interpolation="nearest") #image[:, :, 1]
-    axs[0].hist(image.ravel(), bins=256, range=(0.0, 1.0), fc='k', ec='k')
+    axs[0].imshow(10*np.log10(image[:, :, 0]), cmap='ocean') #image[:, :, 1]
+    #axs[0].hist(image.ravel(), bins=256, range=(0.0, 1.0), fc='k', ec='k')
+    #rasterio.plot.show(image, ax=axs[0], adjust='linear')
     axs[0].set_title('Original Image')
     axs[2].imshow(mask)
     axs[2].set_title('Segmentation Mask')
-    axs[1].imshow(image)
-    axs[1].imshow(mask, alpha=0.5)
+    axs[1].imshow(mask)
+    axs[1].imshow(10*np.log10(image[:, :, 0]), cmap='ocean', alpha=0.5)
+    #rasterio.plot.show(image, ax=axs[1], adjust=False)
+    #axs[1].imshow(mask, alpha=0.5)
     axs[1].set_title('Masked Image')
     plt.show()
 
@@ -79,7 +89,7 @@ def plotMaskedImage(image, mask):
 if __name__=='__main__':
      
     root_images = '/localhome/studenter/mikaellv/Project/data/processed_downloads/'
-    root_masks = '/localhome/studenter/mikaellv/Project/data/untiled_masks/'
+    root_masks = '/localhome/studenter/renatask/Project/data/processed_masks/'
     """
     for img in os.listdir(root_images):
         loc = img.split('S')[0][:-1]
@@ -99,11 +109,13 @@ if __name__=='__main__':
     for img in os.listdir(root_images):
         loc = img.split('S')[0][:-1]
         img_path = root_images+img
-        mask_path = root_masks+loc+'/'+loc+'.shp'
-        shp = gpd.read_file(mask_path)
+        mask_path = root_masks+loc+'.tif'
+        # shp = gpd.read_file(mask_path)
 
-        data = rxr.open_rasterio(img_path, masked=True)
-        data_plotting_extent = plotting_extent(data[0], data.rio.transform())
+        # data = rxr.open_rasterio(img_path, masked=True)
+        # data_plotting_extent = plotting_extent(data[0], data.rio.transform())
+        img, mask = LoadImage(img_path, mask_path)
+        plotMaskedImage(img, mask)
 
 
 
@@ -134,11 +146,39 @@ if __name__=='__main__':
         im = ax.imshow(dem.squeeze())
         ep.colorbar(im)
         plt.show
-        
+
+        # dataset = gdal.Open(path, gdal.GA_ReadOnly) 
+        # # Note GetRasterBand() takes band no. starting from 1 not 0
+        # band = dataset.GetRasterBand(1)
+        # arr = band.ReadAsArray()
+        # plt.imshow(arr/1.73)
+        # print(band.GetStatistics(True, True))
         """
-        break
+        #break
+    path = '/localhome/studenter/renatask/Project/data/processed_downloads/andalsnes_S1A_IW_GRDH_1SDV_20200227T170317.tif'
+    img = georaster.MultiBandRaster('/localhome/studenter/renatask/Project/data/processed_downloads/andalsnes_S1A_IW_GRDH_1SDV_20200227T170317.tif')
+    # img.plot()
+    # plt.imshow(img.r)
+
+
     image, mask = LoadImage('/localhome/studenter/renatask/Project/data/processed_downloads/andalsnes_S1A_IW_GRDH_1SDV_20200227T170317.tif', '/localhome/studenter/renatask/Result.tif')
     plotMaskedImage(image, mask)
+
+    with rasterio.open(path) as ds: 
+        backscatter = ds.read() 
+        backscatter_profile = ds.profile
+
+    print(backscatter_profile)
+    print('This is the crs: ', backscatter_profile['crs'])
+    print('This is the origin and resolution data: ', backscatter_profile['transform'])
+    print('This is the datatype of the raster: ', backscatter_profile['dtype'])
+    print('This is how many bands are in the raster', backscatter_profile['count'])
+    
+    #plt.imshow(backscatter[0, ...])
+    plt.imshow(10*np.log10(backscatter[1,...]))
+    plt.colorbar()
+    #plt.show()
+
 
         
 
