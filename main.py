@@ -14,10 +14,22 @@ from turtle import down
 import data.request as req
 from data.preprocess_functions import Preprocess 
 
+#####################   ML
+from ML.ml_utils import ML_utils 
+import tensorflow as tf
+import datetime
+from keras.callbacks import ModelCheckpoint
+from tensorflow.keras.optimizers import Adam
+import segmentation_models as sm
+sm.set_framework('tf.keras')
+sm.framework()
+from data.plot_data import plotMaskedImage
+from data.plot_data import plotPred
+
 if __name__ == '__main__':
     logging.basicConfig(filename='main_log.log', encoding='utf-8', level=logging.DEBUG, format='%(asctime)s %(levelname)s: %(message)s',  datefmt='%m/%d/%Y %H:%M:%S')
     parser_main = configparser.ConfigParser()
-    parser_main.read('/localhome/studenter/mikaellv/Project/main_config.ini')
+    parser_main.read('/localhome/studenter/renatask/Project/main_config.ini')
     root = parser_main['main']['root']
     download_path = parser_main['main']['download_path']
     shapefile_path = parser_main['main']['shapefile_path']
@@ -121,8 +133,79 @@ if __name__ == '__main__':
                 if os.path.exists(out_path): continue
                 os.makedirs(out_path)
                 bd.tile_write(image_path=mask, output_path=out_path)
-                    
+    
+    if parser_main.getboolean('main','ML'):
+        if parser_main.getboolean('ML','train'):
+            train_folder = parser_main['ML']['train_path']
+            valid_folder = parser_main['ML']['val_path']
 
+            num_training_samples = len(os.listdir(train_folder+'/images'))
+            num_valid_samples = len(os.listdir(valid_folder+'/images'))
 
+            ml = ML_utils()
 
+            train_gen = ml.DataGenerator(train_folder)
+            val_gen = ml.DataGenerator(valid_folder)
 
+            imgs, segs = next(train_gen)
+
+            model = ml.Unet()
+            model.summary()
+
+            model.compile(
+                optimizer=Adam(),
+                loss='categorical_crossentropy',
+                metrics=['categorical_crossentropy', 'acc'],
+            )
+
+            log_dir = "logs/fit/" + datetime.datetime.now().strftime("%Y%m%d-%H%M%S")
+            tensorboard_callback = tf.keras.callbacks.TensorBoard(log_dir=log_dir, histogram_freq=1)
+            
+            checkpoint = ModelCheckpoint('model.hdf5', monitor='val_acc', verbose=1, save_best_only=True, mode='max')
+
+            TRAIN_STEPS = num_training_samples//ml.BATCH_SIZE+1
+            VAL_STEPS = num_valid_samples//ml.BATCH_SIZE+1
+
+            history1 = model.fit(
+                train_gen,
+                validation_data=val_gen,
+                epochs=ml.EPOCHS1,
+                steps_per_epoch=TRAIN_STEPS,
+                callbacks=[checkpoint, tensorboard_callback],
+                workers=0,
+                verbose=1,
+                validation_steps=VAL_STEPS,
+            )
+
+            sm.utils.set_trainable(model, recompile=False)
+
+            model.summary()
+
+            model.compile(
+                optimizer=Adam(learning_rate=0.000001),
+                loss='categorical_crossentropy',
+                metrics=['categorical_crossentropy', 'acc'],
+            )
+
+            history2 = model.fit(
+                train_gen,
+                validation_data=val_gen,
+                epochs=ml.EPOCHS2,
+                steps_per_epoch=TRAIN_STEPS,
+                callbacks=[checkpoint, tensorboard_callback],
+                workers=0,
+                verbose=1,
+                validation_steps=VAL_STEPS,
+            )
+
+            model.save(ml.model_name)
+
+            ml.plot_history(history1)
+            ml.plot_history(history2)
+
+            max_show = 10
+            imgs, segs = next(val_gen)
+            pred = model.predict(imgs)
+
+            for i in range(max_show):
+                plotPred(imgs[i], segs[i], pred[i])

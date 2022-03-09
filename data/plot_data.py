@@ -67,7 +67,7 @@ def plotMaskedImage(image, mask):
     #        for a in range(len(e)):
     #            if math.isnan(e[a]): e[a]=0
     #image = scale(image)
-    print(image[1])
+    #print(image[1])
     fig, axs = plt.subplots(1, 3, figsize=(25,25))
     plt.tight_layout()
     axs[0].imshow(10*np.log10(image[:, :, 0]), cmap='ocean') #image[:, :, 1]
@@ -77,12 +77,33 @@ def plotMaskedImage(image, mask):
     axs[2].imshow(mask)
     axs[2].set_title('Segmentation Mask')
     axs[1].imshow(mask)
-    axs[1].imshow(10*np.log10(image[:, :, 0]), cmap='ocean', alpha=0.5)
+    axs[1].imshow(10*np.log10(image[:, :, 0]), cmap='ocean', alpha=0.6)
     #rasterio.plot.show(image, ax=axs[1], adjust=False)
     #axs[1].imshow(mask, alpha=0.5)
     axs[1].set_title('Masked Image')
     plt.show()
 
+def plotPred(image, mask, pred):
+    #for i in image:
+    #    for e in i:
+    #        for a in range(len(e)):
+    #            if math.isnan(e[a]): e[a]=0
+    #image = scale(image)
+    #print(image[1])
+    fig, axs = plt.subplots(1, 3, figsize=(25,25))
+    plt.tight_layout()
+    axs[0].imshow(10*np.log10(image[:, :, 0]), cmap='ocean') #image[:, :, 1]
+    #axs[0].hist(image.ravel(), bins=256, range=(0.0, 1.0), fc='k', ec='k')
+    #rasterio.plot.show(image, ax=axs[0], adjust='linear')
+    axs[0].set_title('Original Image')
+    axs[2].imshow(mask)
+    axs[2].set_title('Segmentation Mask')
+    axs[1].imshow(pred)
+    axs[1].imshow(10*np.log10(image[:, :, 0]), cmap='ocean', alpha=0.6)
+    #rasterio.plot.show(image, ax=axs[1], adjust=False)
+    #axs[1].imshow(mask, alpha=0.5)
+    axs[1].set_title('Predicted mask')
+    plt.show()
 
 
 
