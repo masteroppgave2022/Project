@@ -18,6 +18,13 @@ from keras.callbacks import ModelCheckpoint
 from tensorflow.keras.optimizers import Adam
 import configparser
 import math
+from data.plot_data import plotPred
+from data.plot_data import plotMaskedImage
+
+from sklearn.metrics import precision_score
+from sklearn.metrics import recall_score
+from sklearn.metrics import confusion_matrix
+from sklearn.metrics import f1_score
 
 class ML_utils():
     def __init__(self) -> None:
@@ -29,25 +36,25 @@ class ML_utils():
         self.EPOCHS1=int(self.parser_ml['train']['EPOCHS1'])
         self.EPOCHS2=int(self.parser_ml['train']['EPOCHS2'])
         self.BATCH_SIZE=int(self.parser_ml['train']['BATCH_SIZE'])
-        self.HEIGHT= None #int(self.parser_ml['train']['HEIGHT'])
-        self.WIDTH= None #int(self.parser_ml['train']['WIDTH'])
-
-        # self.CLASSES = {
-        #     1: 'Water',
-        #     0: 'not_water',
-        # }
+        self.HEIGHT= int(self.parser_ml['train']['HEIGHT'])
+        self.WIDTH= int(self.parser_ml['train']['WIDTH'])
 
         self.CLASSES = {
             1: 'Water',
-            2: 'Trees',
-            3: 'Grass',
-            4: 'Flooded Vegetation',
-            5: 'Crops',
-            6: 'Scrub/Shrub',
-            7: 'Built Area',
-            8: 'Bare Ground',
-            9: 'Snow/Ice'
+            0: 'not_water',
         }
+
+        # self.CLASSES = {
+        #     1: 'Water',
+        #     2: 'Trees',
+        #     3: 'Grass',
+        #     4: 'Flooded Vegetation',
+        #     5: 'Crops',
+        #     6: 'Scrub/Shrub',
+        #     7: 'Built Area',
+        #     8: 'Bare Ground',
+        #     9: 'Snow/Ice'
+        # }
 
         self.N_CLASSES=len(self.CLASSES)
 
@@ -62,11 +69,11 @@ class ML_utils():
 
     #     return image, mask
 
-    def LoadImage(image_path, mask_path):
+    def LoadImage(self, file, image_path, mask_path):
         """ Return: (h,w,n)-np.arrays """
         # Images to np-arrays
-        image_arr = rasterio.open(image_path).read()
-        mask_arr = rasterio.open(mask_path).read()
+        image_arr = rasterio.open(image_path+'/'+file).read()
+        mask_arr = rasterio.open(mask_path+'/'+file).read()
         # Convert dimensions to standard (n,height,width) --> (height,width,n)
         image = np.rollaxis(image_arr,0,3)
         mask = np.rollaxis(mask_arr,0,3)
@@ -108,10 +115,10 @@ class ML_utils():
 
         return(seg_img)
 
-    def DataGenerator(self, path):
+    def DataGenerator(self, path, mask_folder):
         batch_size=self.BATCH_SIZE
         classes=self.N_CLASSES
-        files = os.listdir(path+'/images')
+        files = os.listdir(path)#os.listdir(path+'/images')
         while True:
             for i in range(0, len(files), batch_size):
                 batch_files = files[i : i+batch_size]
@@ -119,18 +126,39 @@ class ML_utils():
                 segs=[]
                 for file in batch_files:
                     if not file.startswith('.'):
-                        image, mask = self.LoadImage(file, path)
-                        #mask_binned = self.bin_image(mask)
-                        #labels = self.getSegmentationArr(mask_binned, classes)
+                        image, mask = self.LoadImage(file, path, mask_folder)
+                        mask_binned = self.bin_image(mask)
+                        labels = self.getSegmentationArr(mask_binned, classes)
                         imgs.append(image)
-                        segs.append(mask)
+                        #segs.append(mask)
                         # imgs.append(image)
-                        # segs.append(labels)
+                        segs.append(labels)
+                        #plt.imshow(image[:, :, 1])
+                        #plt.imshow(labels[:, :, 0])
+                        #plt.imshow(labels[:, :, 1])
+                        #plt.show()
                 yield np.array(imgs), np.array(segs)
 
     def Unet(self):
-        model = sm.Unet('resnet50', classes=self.N_CLASSES, activation='softmax', encoder_weights='imagenet', input_shape=[self.HEIGHT, self.WIDTH, 4], encoder_freeze=True)
-        tf.keras.utils.plot_model(model, show_shapes=True, to_file=self.model_name+'.png')
+        N = 4
+        inp = layers.Input(shape=(None, None, N))
+        l1 = layers.Conv2D(3, (1, 1))(inp)
+        base_model = sm.Unet('resnet50', classes=self.N_CLASSES, activation='softmax', encoder_weights='imagenet',encoder_freeze=True)
+        out = base_model(l1)
+        model = keras.models.Model(inp, out, name=base_model.name)
+        #model = sm.Unet('resnet50', classes=self.N_CLASSES, activation='softmax', encoder_weights='imagenet', input_shape=[self.HEIGHT, self.WIDTH, 4], encoder_freeze=True)
+        #tf.keras.utils.plot_model(model, show_shapes=True, to_file=self.model_name+'.png')
+        return model
+
+    def Unet2(self):
+        N = 4
+        inp = layers.Input(shape=(None, None, N))
+        l1 = layers.Conv2D(3, (1, 1))(inp)
+        base_model = sm.Unet('resnet50', classes=self.N_CLASSES, activation='softmax')
+        out = base_model(l1)
+        model = keras.models.Model(inp, out, name=base_model.name)
+        #model = sm.Unet('resnet50', classes=self.N_CLASSES, activation='softmax', encoder_weights='imagenet', input_shape=[self.HEIGHT, self.WIDTH, 4], encoder_freeze=True)
+        #tf.keras.utils.plot_model(model, show_shapes=True, to_file=self.model_name+'.png')
         return model
 
     def plot_history(self, history):
@@ -144,5 +172,81 @@ class ML_utils():
         print(history_frame1)
         plt.show()
 
+def ML_main(train_folder,valid_folder, mask_folder, mask_folder_val ):
+
+    # train_folder = parser_main['ML']['train_path']
+    # valid_folder = parser_main['ML']['val_path']
+
+    num_training_samples = len(os.listdir(train_folder))#len(os.listdir(train_folder+'/images'))
+    num_valid_samples = len(os.listdir(train_folder))#len(os.listdir(valid_folder+'/images'))
+
+    ml = ML_utils()
+
+    train_gen = ml.DataGenerator(train_folder, mask_folder)
+    val_gen = ml.DataGenerator(valid_folder, mask_folder_val)
+
+    imgs, segs = next(train_gen)
+
+    plotMaskedImage(imgs[1], segs[1])
+
+    model = ml.Unet2()
+    model.summary()
+
+    model.compile(
+        optimizer=Adam(),
+        loss='categorical_crossentropy',
+        metrics=['categorical_crossentropy', 'acc'],
+    )
+
+    log_dir = "logs/fit/" + datetime.datetime.now().strftime("%Y%m%d-%H%M%S")
+    tensorboard_callback = tf.keras.callbacks.TensorBoard(log_dir=log_dir, histogram_freq=1)
     
-        
+    checkpoint = ModelCheckpoint('model.hdf5', monitor='val_acc', verbose=1, save_best_only=True, mode='max')
+
+    TRAIN_STEPS = num_training_samples//ml.BATCH_SIZE+1
+    VAL_STEPS = num_valid_samples//ml.BATCH_SIZE+1
+
+    history1 = model.fit(
+        train_gen,
+        validation_data=val_gen,
+        epochs=ml.EPOCHS1,
+        steps_per_epoch=TRAIN_STEPS,
+        callbacks=[tensorboard_callback], #checkpoint,
+        workers=0,
+        verbose=1,
+        validation_steps=VAL_STEPS,
+    )
+
+    sm.utils.set_trainable(model, recompile=False)
+
+    model.summary()
+
+    model.compile(
+        optimizer=Adam(learning_rate=0.000001),
+        loss='categorical_crossentropy',
+        metrics=['categorical_crossentropy', 'acc'],
+    )
+
+    history2 = model.fit(
+        train_gen,
+        validation_data=val_gen,
+        epochs=ml.EPOCHS2,
+        steps_per_epoch=TRAIN_STEPS,
+        callbacks=[checkpoint, tensorboard_callback],
+        workers=0,
+        verbose=1,
+        validation_steps=VAL_STEPS,
+    )
+
+    model.save(ml.model_name)
+
+    ml.plot_history(history1)
+    ml.plot_history(history2)
+
+    max_show = 10
+    imgs, segs = next(val_gen)
+    pred = model.predict(imgs)
+
+    for i in range(max_show):
+        plotPred(imgs[i], np.argmax(segs[i], axis=-1), np.argmax(pred[i], axis=-1))
+    

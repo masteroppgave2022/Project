@@ -16,7 +16,9 @@ from data.preprocess_functions import Preprocess
 
 #####################   ML
 from ML.ml_utils import ML_utils 
+from ML.ml_utils import ML_main
 import tensorflow as tf
+import keras as keras
 import datetime
 from keras.callbacks import ModelCheckpoint
 from tensorflow.keras.optimizers import Adam
@@ -25,6 +27,13 @@ sm.set_framework('tf.keras')
 sm.framework()
 from data.plot_data import plotMaskedImage
 from data.plot_data import plotPred
+
+from sklearn.metrics import precision_score
+from sklearn.metrics import recall_score
+from sklearn.metrics import confusion_matrix
+from sklearn.metrics import f1_score
+
+import numpy as np
 
 if __name__ == '__main__':
     logging.basicConfig(filename='main_log.log', encoding='utf-8', level=logging.DEBUG, format='%(asctime)s %(levelname)s: %(message)s',  datefmt='%m/%d/%Y %H:%M:%S')
@@ -138,74 +147,65 @@ if __name__ == '__main__':
         if parser_main.getboolean('ML','train'):
             train_folder = parser_main['ML']['train_path']
             valid_folder = parser_main['ML']['val_path']
+            mask_folder = '/localhome/studenter/renatask/Project/data/tiled_masks/roros'
+            mask_folder_val ='/localhome/studenter/renatask/Project/data/tiled_masks/gaula_melhus'
 
-            num_training_samples = len(os.listdir(train_folder+'/images'))
-            num_valid_samples = len(os.listdir(valid_folder+'/images'))
+            num_training_samples = len(os.listdir(train_folder))#len(os.listdir(train_folder+'/images'))
+            num_valid_samples = len(os.listdir(train_folder))#len(os.listdir(valid_folder+'/images'))
 
+            #ml = ML_utils()
+
+            ML_main(train_folder, valid_folder, mask_folder, mask_folder_val)
+            
+        if parser_main.getboolean('ML','val'):
             ml = ML_utils()
 
-            train_gen = ml.DataGenerator(train_folder)
-            val_gen = ml.DataGenerator(valid_folder)
+            data = '/localhome/studenter/renatask/Project/data/tiled_images/melhus_lakes_S1B_IW_GRDH_1SDV_20201229T054638'
+            masks = '/localhome/studenter/renatask/Project/data/tiled_masks/melhus_lakes'
+            val_gen = ml.DataGenerator(data, masks)
 
-            imgs, segs = next(train_gen)
-
-            model = ml.Unet()
+            model = keras.models.load_model("model")
             model.summary()
 
-            model.compile(
-                optimizer=Adam(),
-                loss='categorical_crossentropy',
-                metrics=['categorical_crossentropy', 'acc'],
-            )
-
-            log_dir = "logs/fit/" + datetime.datetime.now().strftime("%Y%m%d-%H%M%S")
-            tensorboard_callback = tf.keras.callbacks.TensorBoard(log_dir=log_dir, histogram_freq=1)
-            
-            checkpoint = ModelCheckpoint('model.hdf5', monitor='val_acc', verbose=1, save_best_only=True, mode='max')
-
-            TRAIN_STEPS = num_training_samples//ml.BATCH_SIZE+1
-            VAL_STEPS = num_valid_samples//ml.BATCH_SIZE+1
-
-            history1 = model.fit(
-                train_gen,
-                validation_data=val_gen,
-                epochs=ml.EPOCHS1,
-                steps_per_epoch=TRAIN_STEPS,
-                callbacks=[checkpoint, tensorboard_callback],
-                workers=0,
-                verbose=1,
-                validation_steps=VAL_STEPS,
-            )
-
-            sm.utils.set_trainable(model, recompile=False)
-
-            model.summary()
-
-            model.compile(
-                optimizer=Adam(learning_rate=0.000001),
-                loss='categorical_crossentropy',
-                metrics=['categorical_crossentropy', 'acc'],
-            )
-
-            history2 = model.fit(
-                train_gen,
-                validation_data=val_gen,
-                epochs=ml.EPOCHS2,
-                steps_per_epoch=TRAIN_STEPS,
-                callbacks=[checkpoint, tensorboard_callback],
-                workers=0,
-                verbose=1,
-                validation_steps=VAL_STEPS,
-            )
-
-            model.save(ml.model_name)
-
-            ml.plot_history(history1)
-            ml.plot_history(history2)
-
-            max_show = 10
+            max_show = 20
+            #imgs, segs =  ml.DataGenerator('/localhome/studenter/renatask/Project/data/tiled_images/gaula_melhus_S1A_IW_GRDH_1SDV_20200913T165517', '/localhome/studenter/renatask/Project/data/tiled_masks/gaula_melhus') #val_gen
+            #pred = model.predict(imgs)
             imgs, segs = next(val_gen)
             pred = model.predict(imgs)
 
+
+            predictions = []
+            segmentations = []
+            for i in range(0,len(pred),10):
+                predictions.append(np.argmax(pred[i], axis=-1))
+                segmentations.append(np.argmax(segs[i], axis=-1))
+
             for i in range(max_show):
                 plotPred(imgs[i], segs[i], pred[i])
+                
+
+            print(f'preds: {predictions[1]}')
+            print(f'segs: {segmentations[1]}')
+
+            segmentations = np.array(segmentations)
+            predictions = np.array(predictions)
+
+            print(f"segmentation shape: {segmentations.shape}")
+            print(f"predictions shape: {predictions.shape}")
+
+            pred1D = predictions.reshape(-1)
+            segs1D = segmentations.reshape(-1)
+
+            print(f"segmentation 1d: {segs1D.shape}")
+            print(f"predictions 1d: {pred1D.shape}")
+
+            print(f"Confusion matrix: \n {tf.math.confusion_matrix(segs1D, pred1D, num_classes=ml.N_CLASSES+1)}")
+
+            precision = precision_score(segs1D, pred1D, average='weighted')
+            recall = recall_score(segs1D, pred1D, average='weighted')
+            print(f'Precision score: {precision}')
+            print(f'Recall score: {recall}')
+            print(f'F1 score: {(2*precision*recall)/(recall+precision)}')
+            print(f"Confusion matrix: \n {confusion_matrix(segs1D, pred1D)}")
+            f1=f1_score(segs1D, pred1D, average='weighted')
+            print(f'F1 score: {f1}')
