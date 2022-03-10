@@ -2,21 +2,15 @@ import os
 import rasterio
 from rasterio import windows
 from rasterio.features import rasterize
+from osgeo import ogr, gdal
 import numpy as np
 import geopandas as gpd
 from shapely import ops, geometry
 from itertools import product
 
-def fetch_polygon(polygon, transform):
-    points = []
-    poly = ops.unary_union(polygon)
-    for i in np.array(poly.exterior.coords):
-        points.append(~transform * tuple(i)[:2])
-    new_poly = geometry.Polygon(points)
-    return new_poly
-     
 def shp_to_gtiff(path_to_shp, out_path):
     location = os.path.split(path_to_shp)[1].split('.')[0]
+    out = out_path+location+'.tif'
     if os.path.exists(out_path+location+'.tif'):
         print("[SKIPPING] GTiff already generated for this SHP.")
         return None
@@ -25,28 +19,21 @@ def shp_to_gtiff(path_to_shp, out_path):
         if raster.startswith(location):
             raster_to_match = path_to_rasters+raster
             break
-    src = rasterio.open(raster_to_match)
-    transform = src.meta['transform']
-    shp_df = gpd.read_file(path_to_shp)
-    polygons = []
-    image_size = (src.meta['height'], src.meta['width'])
-    for num,row in shp_df.iterrows():
-        if not row['geometry']: continue
-        if row['geometry'].geom_type == 'Polygon':
-            poly = fetch_polygon(row['geometry'], transform)
-            polygons.append(poly)
-        else:
-            for p in row['geometry']:
-                poly = fetch_polygon(p, transform)
-                polygons.append(poly)
-    mask = rasterize(shapes=polygons,out_shape=image_size)
-    mask = mask.astype("uint16")
-    meta = src.meta.copy()
-    meta.update({'count': 1})
-    save_path = out_path + location + '.tif'
-    with rasterio.open(save_path,'w',**meta) as dst:
-        dst.write(mask*255,1)
-    src.close()
+    image = gdal.Open(raster_to_match, gdal.GA_ReadOnly)
+    Shapefile = ogr.Open(path_to_shp)
+    Shapefile_layer = Shapefile.GetLayer()
+    print("Rasterising shapefile...")
+    output = gdal.GetDriverByName('GTiff').Create(out, image.RasterXSize, image.RasterYSize, 1, gdal.GDT_Byte, options=['COMPRESS=DEFLATE'])
+    output.SetProjection(image.GetProjectionRef())
+    output.SetGeoTransform(image.GetGeoTransform()) 
+    Band = output.GetRasterBand(1)
+    Band.SetNoDataValue(0)
+    gdal.RasterizeLayer(output, [1], Shapefile_layer, burn_values=[1])
+
+    band = None
+    output = None
+    image = None
+    shapefile = None
 
 def get_tiles(ds, width=256, height=256):
     """
@@ -88,6 +75,5 @@ if __name__ == '__main__':
     out_path = '/localhome/studenter/mikaellv/Project/data/processed_masks/'
     shp_to_gtiff(path_to_shp=shp,out_path=out_path)
     img = '/localhome/studenter/mikaellv/Project/data/processed_downloads/gaula_hovin_S1A_IW_GRDH_1SDV_20200925T053855.tif'
-    out_path = "/localhome/studenter/mikaellv/Project/data/datasets/tiled_images/"
+    out_path = "/localhome/studenter/mikaellv/Project/data/tiled_images/"
     tile_write(img,out_path)
-    print(len(os.listdir(out_path)))

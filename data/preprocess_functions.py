@@ -232,12 +232,13 @@ class Preprocess():
         #polygon.to_file(filename='polygon.shp', driver="ESRI Shapefile")
         return polygon
     
-    def subset(self, product, shape, name, save_path, GeoPos, type = "GeoTIFF"):
+    def subset(self, product, shape, name, save_path, type = "GeoTIFF"):
 
         """
         Type = "BEAM-DIMAP" for snap, else "GeoTIFF"
         """
-
+        GeoPos = snappy.ProductUtils.createGeoBoundary(product, 1)
+        
         scene = self.geopos_to_wkt(GeoPos)
 
         r = shapefile.Reader(shape)

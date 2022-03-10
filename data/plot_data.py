@@ -14,12 +14,12 @@ import matplotlib
 matplotlib.use("Qt5Agg")
 from matplotlib import pyplot as plt
 
-import earthpy as et
-import earthpy.spatial as es
-import earthpy.plot as ep
+# import earthpy as et
+# import earthpy.spatial as es
+# import earthpy.plot as ep
 import math
 
-import georaster
+# import georaster
 from osgeo import gdal
 
 

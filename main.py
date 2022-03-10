@@ -1,18 +1,8 @@
 import os
 import logging
-import subprocess
 import configparser
-import multiprocessing
-import snappy
-from snappy import ProductIO
-import geopandas as gpd
-import pandas as pd
-from shapely.geometry import Polygon
-#import jpy
 import data.build_data as bd
-from turtle import down
 import data.request as req
-from data.preprocess_functions import Preprocess 
 
 #####################   ML
 from ML.ml_utils import ML_utils 
@@ -62,6 +52,7 @@ if __name__ == '__main__':
 
     if parser_main.getboolean('main', 'preprocess'):
         """ Processing pipeline to be implemented here """
+        from data.preprocess_functions import Preprocess
         print("[INFO] Processing...")
         pp = Preprocess()
 
@@ -79,19 +70,13 @@ if __name__ == '__main__':
         for file in os.listdir(download_path):
             if file.startswith("."): continue
             product = pp.read_product(download_path+file)
-            try:
-                GeoPos = snappy.ProductUtils.createGeoBoundary(product, 1)
-                logging.info(f"Product {file} read")
-            except:
-                logging.info(f"Java NullPointerException, skipping...")
-                continue
             for shape in os.listdir(shapefile_path):
                 if shape.startswith("."): continue
                 if shape+"_"+file+".tif" in os.listdir(save_path): continue
                 #subset = pp.add_shape_file(product, shapefile_path+shape+"/"+shape)
                 #pp.save_product(subset, shape+"_"+file, subset_path, "BEAM-DIMAP")
                 name = shape+"_"+file[0:32]
-                subset = pp.subset(product, shapefile_path+shape+"/"+shape, shape+"_"+file, subset_path, GeoPos, "BEAM-DIMAP")
+                subset = pp.subset(product, shapefile_path+shape+"/"+shape, shape+"_"+file, subset_path, "BEAM-DIMAP")
                 if subset: logging.info(f"Subset {shape+'_'+file} created")
 
                 if subset:
