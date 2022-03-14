@@ -311,13 +311,10 @@ class Preprocess():
             for i,row in clipped.iterrows():
                 if (type(row.geometry) == shapely.geometry.collection.GeometryCollection)\
                     or (type(row.geometry) == shapely.geometry.multilinestring.MultiLineString):
-                    # get all polygons
                     shapes = []
                     for shape in row.geometry:
                         if type(shape) == shapely.geometry.polygon.Polygon: shapes.append(shape)
                     clipped.at[i, 'geometry'] = shapely.geometry.collection.GeometryCollection(shapes)
-            # raise Exception("Testing!")
-                
             clipped.to_file(out_path)
             print(f"[INFO] 100% done with: {os.path.split(mask)[1]}!")
 

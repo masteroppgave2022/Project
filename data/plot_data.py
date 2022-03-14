@@ -32,7 +32,7 @@ def plot(image_path, mask_path):
     fig, ax = plt.subplots(figsize=(25,25))
     plt.tight_layout()
     ax.imshow(image,extent=extent)
-    shp.plot(ax=ax,facecolor='green',edgecolor='none',zorder=5,alpha=0.2)
+    shp.plot(ax=ax,facecolor='green',edgecolor='none',zorder=5,alpha=0.1)
     plt.show()
 
 def LoadImage(image_path, mask_path):
@@ -48,11 +48,9 @@ def LoadImage(image_path, mask_path):
         for e in i:
         #for e in range(len(i)):
     #        if math.isnan(i[e]): i[e]=0
-            for a in range(len(e)):
-                if math.isnan(e[a]): e[a]=0
-
+            for a in range(len(e)): 
+                if math.isnan(e[a]): e[a] = 0
     #image = scale(image)
-
     return image, mask
 
 
@@ -74,9 +72,9 @@ def plotMaskedImage(image, mask):
     #axs[0].hist(image.ravel(), bins=256, range=(0.0, 1.0), fc='k', ec='k')
     #rasterio.plot.show(image, ax=axs[0], adjust='linear')
     axs[0].set_title('Original Image')
-    axs[2].imshow(mask[:, :, 1])
+    axs[2].imshow(mask[:, :, 0])
     axs[2].set_title('Segmentation Mask')
-    axs[1].imshow(mask[:, :, 1])
+    axs[1].imshow(mask[:, :, 0])
     axs[1].imshow(10*np.log10(image[:, :, 0]), cmap='ocean', alpha=0.6)
     #rasterio.plot.show(image, ax=axs[1], adjust=False)
     #axs[1].imshow(mask, alpha=0.5)
