@@ -14,12 +14,12 @@ import matplotlib
 matplotlib.use("Qt5Agg")
 from matplotlib import pyplot as plt
 
-import earthpy as et
-import earthpy.spatial as es
-import earthpy.plot as ep
+# import earthpy as et
+# import earthpy.spatial as es
+# import earthpy.plot as ep
 import math
 
-import georaster
+# import georaster
 from osgeo import gdal
 
 
@@ -32,7 +32,7 @@ def plot(image_path, mask_path):
     fig, ax = plt.subplots(figsize=(25,25))
     plt.tight_layout()
     ax.imshow(image,extent=extent)
-    shp.plot(ax=ax,facecolor='green',edgecolor='none',zorder=5,alpha=0.2)
+    shp.plot(ax=ax,facecolor='green',edgecolor='none',zorder=5,alpha=0.1)
     plt.show()
 
 def LoadImage(image_path, mask_path):
@@ -48,11 +48,9 @@ def LoadImage(image_path, mask_path):
         for e in i:
         #for e in range(len(i)):
     #        if math.isnan(i[e]): i[e]=0
-            for a in range(len(e)):
-                if math.isnan(e[a]): e[a]=0
-
+            for a in range(len(e)): 
+                if math.isnan(e[a]): e[a] = 0
     #image = scale(image)
-
     return image, mask
 
 
