@@ -129,14 +129,31 @@ class ML_utils():
                         image, mask = self.LoadImage(file, path, mask_folder)
                         mask_binned = self.bin_image(mask)
                         labels = self.getSegmentationArr(mask_binned, classes)
-                        imgs.append(image)
-                        #segs.append(mask)
+                        imgs.append(image[:,:,1:4])
+                        # segs.append(mask)
                         # imgs.append(image)
                         segs.append(labels)
-                        #plt.imshow(image[:, :, 1])
+                        # plotMaskedImage(image, mask)
+
+                        # fig, axs = plt.subplots(1, 4, figsize=(25,25))
+                        # plt.tight_layout()
+                        # axs[0].imshow(10*np.log10(image[:, :, 0]), cmap='ocean') 
+                        # axs[0].set_title('0')
+                        # axs[2].imshow(10*np.log10(image[:, :, 2]), cmap='ocean') 
+                        # axs[2].set_title('1')
+                        # axs[1].imshow(10*np.log10(image[:, :, 1]), cmap='ocean') 
+                        # axs[1].set_title('2')
+                        # axs[3].imshow(10*np.log10(image[:, :, 3]), cmap='ocean') 
+                        # axs[3].set_title('3')
+                        # plt.show()
+
+                        # plt.imshow(image[:, :, 0])
+                        # plt.imshow(image[:, :, 1])
+                        # plt.imshow(image[:, :, 2])
+                        # plt.imshow(image[:, :, 3])
                         #plt.imshow(labels[:, :, 0])
                         #plt.imshow(labels[:, :, 1])
-                        #plt.show()
+                        # plt.show()
                 yield np.array(imgs), np.array(segs)
 
     def Unet(self):
@@ -159,6 +176,11 @@ class ML_utils():
         model = keras.models.Model(inp, out, name=base_model.name)
         #model = sm.Unet('resnet50', classes=self.N_CLASSES, activation='softmax', encoder_weights='imagenet', input_shape=[self.HEIGHT, self.WIDTH, 4], encoder_freeze=True)
         #tf.keras.utils.plot_model(model, show_shapes=True, to_file=self.model_name+'.png')
+        return model
+
+    def Unet3(self):
+        N=3
+        model = sm.Unet('resnet50', classes=self.N_CLASSES, activation='softmax', encoder_weights='imagenet', input_shape=[None, None, 3], encoder_freeze=True)
         return model
 
     def plot_history(self, history):
@@ -189,7 +211,7 @@ def ML_main(train_folder,valid_folder, mask_folder, mask_folder_val ):
 
     plotMaskedImage(imgs[1], segs[1])
 
-    model = ml.Unet2()
+    model = ml.Unet3()
     model.summary()
 
     model.compile(
@@ -227,26 +249,35 @@ def ML_main(train_folder,valid_folder, mask_folder, mask_folder_val ):
         metrics=['categorical_crossentropy', 'acc'],
     )
 
-    history2 = model.fit(
-        train_gen,
-        validation_data=val_gen,
-        epochs=ml.EPOCHS2,
-        steps_per_epoch=TRAIN_STEPS,
-        callbacks=[checkpoint, tensorboard_callback],
-        workers=0,
-        verbose=1,
-        validation_steps=VAL_STEPS,
-    )
+    # history2 = model.fit(
+    #     train_gen,
+    #     validation_data=val_gen,
+    #     epochs=ml.EPOCHS2,
+    #     steps_per_epoch=TRAIN_STEPS,
+    #     callbacks=[checkpoint, tensorboard_callback],
+    #     workers=0,
+    #     verbose=1,
+    #     validation_steps=VAL_STEPS,
+    # )
 
     model.save(ml.model_name)
 
     ml.plot_history(history1)
-    ml.plot_history(history2)
+    #ml.plot_history(history2)
 
-    max_show = 10
+    max_show = 20
     imgs, segs = next(val_gen)
     pred = model.predict(imgs)
 
+    predictions = []
+    segmentations = []
+    for i in range(len(pred)):
+        predictions.append(np.argmax(pred[i], axis=-1))
+        segmentations.append(np.argmax(segs[i], axis=-1))
+
     for i in range(max_show):
-        plotPred(imgs[i], np.argmax(segs[i], axis=-1), np.argmax(pred[i], axis=-1))
+        plotPred(imgs[i], segs[i], pred[i])
+
+    # for i in range(max_show):
+    #    plotPred(imgs[i], np.argmax(segs[i], axis=-1), np.argmax(pred[i], axis=-1))
     

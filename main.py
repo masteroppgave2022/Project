@@ -160,11 +160,11 @@ if __name__ == '__main__':
         if parser_main.getboolean('ML','val'):
             ml = ML_utils()
 
-            data = '/localhome/studenter/renatask/Project/data/tiled_images/melhus_lakes_S1B_IW_GRDH_1SDV_20201229T054638'
+            data = '/localhome/studenter/renatask/Project/data/tiled_images/melhus_lakes_S1A_IW_GRDH_1SDV_20200628T164709'
             masks = '/localhome/studenter/renatask/Project/data/tiled_masks/melhus_lakes'
             val_gen = ml.DataGenerator(data, masks)
 
-            model = keras.models.load_model("model")
+            model = keras.models.load_model("model2")
             model.summary()
 
             max_show = 20
