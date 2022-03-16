@@ -175,7 +175,7 @@ if __name__=='__main__':
         """
         #break
     path = '/localhome/studenter/renatask/Project/data/processed_downloads/andalsnes_S1A_IW_GRDH_1SDV_20200227T170317.tif'
-    img = georaster.MultiBandRaster('/localhome/studenter/renatask/Project/data/processed_downloads/andalsnes_S1A_IW_GRDH_1SDV_20200227T170317.tif')
+    #img = georaster.MultiBandRaster('/localhome/studenter/renatask/Project/data/processed_downloads/andalsnes_S1A_IW_GRDH_1SDV_20200227T170317.tif')
     # img.plot()
     # plt.imshow(img.r)
 
