@@ -19,6 +19,8 @@ from matplotlib import pyplot as plt
 # import earthpy.plot as ep
 import math
 
+import cv2
+
 # import georaster
 from osgeo import gdal
 
@@ -68,8 +70,11 @@ def plotMaskedImage(image, mask):
     #print(image[1])
     fig, axs = plt.subplots(1, 3, figsize=(25,25))
     plt.tight_layout()
-    axs[0].imshow(10*np.log10(image[:, :, 0]), cmap='ocean') #image[:, :, 1]
-    #axs[0].hist(image.ravel(), bins=256, range=(0.0, 1.0), fc='k', ec='k')
+    #axs[0].imshow(10*np.log10(image[:, :, 0]), cmap='ocean') #image[:, :, 1]
+    #axs[0].imshow((image[:,:,1]), cmap='ocean') #image[:, :, 1]
+    #axs[0].imshow(255*(1/16)*np.log2(image[:, :, 0]), cmap='ocean') #image[:, :, 1]
+    axs[0].hist((255*(1/16)*np.log2(image)).ravel(), bins=256, range=(-255.0, 255.0), fc='k', ec='k')
+    #axs[0].hist(image.ravel(), bins=256, range=(-1.0, 1.0), fc='k', ec='k')
     #rasterio.plot.show(image, ax=axs[0], adjust='linear')
     axs[0].set_title('Original Image')
     axs[2].imshow(mask[:, :, 0])
@@ -96,7 +101,8 @@ def plotPred(image, mask, pred):
     axs[0].set_title('Original Image')
     axs[2].imshow(mask[:, :, 1])
     axs[2].set_title('Segmentation Mask')
-    axs[1].imshow(pred[:, :, 1])
+    #axs[1].imshow(pred[:, :, 1]) # use this line if argmax is not applied 
+    axs[1].imshow(pred) # use this line if argmax is applied 
     #axs[1].imshow(10*np.log10(image[:, :, 0]), cmap='ocean', alpha=0.6)
     #rasterio.plot.show(image, ax=axs[1], adjust=False)
     #axs[1].imshow(mask, alpha=0.5)
@@ -124,22 +130,22 @@ if __name__=='__main__':
         ax.imshow(image,extent=extent)
         shp.plot(ax=ax,facecolor='green',edgecolor='none',zorder=5,alpha=0.2)
         plt.show()
-    """
-    for img in os.listdir(root_images):
-        loc = img.split('S')[0][:-1]
-        img_path = root_images+img
-        mask_path = root_masks+loc+'.tif'
-        # shp = gpd.read_file(mask_path)
+    
+    # for img in os.listdir(root_images):
+    #     loc = img.split('S')[0][:-1]
+    #     img_path = root_images+img
+    #     mask_path = root_masks+loc+'.tif'
+    #     # shp = gpd.read_file(mask_path)
 
-        # data = rxr.open_rasterio(img_path, masked=True)
-        # data_plotting_extent = plotting_extent(data[0], data.rio.transform())
-        img, mask = LoadImage(img_path, mask_path)
-        plotMaskedImage(img, mask)
-
-
+    #     # data = rxr.open_rasterio(img_path, masked=True)
+    #     # data_plotting_extent = plotting_extent(data[0], data.rio.transform())
+    #     img, mask = LoadImage(img_path, mask_path)
+    #     plotMaskedImage(img, mask)
 
 
-        """ 
+
+
+        
         f, ax = plt.subplots()
 
         ep.plot_rgb(data.values,
@@ -179,9 +185,15 @@ if __name__=='__main__':
     # img.plot()
     # plt.imshow(img.r)
 
+    i_path = '/localhome/studenter/renatask/Project/data/processed_downloads/andalsnes_S1A_IW_GRDH_1SDV_20190922T060342.tif'
+    m_path = ''
 
-    image, mask = LoadImage('/localhome/studenter/renatask/Project/data/processed_downloads/andalsnes_S1A_IW_GRDH_1SDV_20200227T170317.tif', '/localhome/studenter/renatask/Result.tif')
-    plotMaskedImage(image, mask)
+    image, mask = LoadImage(i_path, '/localhome/studenter/renatask/Result.tif')
+
+    norm = np.zeros((2364,1230,3))
+    norm_img = cv2.normalize(image, norm, 0,255, cv2.NORM_MINMAX)
+
+    plotMaskedImage(norm_img, mask)
 
     with rasterio.open(path) as ds: 
         backscatter = ds.read() 

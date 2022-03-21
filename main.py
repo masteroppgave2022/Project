@@ -25,9 +25,24 @@ from sklearn.metrics import f1_score
 
 import numpy as np
 
+import seaborn as sns
+
+def give_color_to_seg_img(seg):
+    n_classes=2
+    seg_img = np.zeros( (seg.shape[0],seg.shape[1],3) ).astype('float')
+    colors = sns.color_palette("hls", n_classes)
+
+    for c in range(n_classes):
+        segc = (seg == c)
+        seg_img[:,:,0] += (segc*( colors[c][0] ))
+        seg_img[:,:,1] += (segc*( colors[c][1] ))
+        #seg_img[:,:,2] += (segc*( colors[c][2] ))
+
+    return(seg_img)
+
 
 """ Log progress """
-logging.basicConfig(filename='main_log.log', encoding='utf-8', level=logging.DEBUG, format='%(asctime)s %(levelname)s: %(message)s',  datefmt='%m/%d/%Y %H:%M:%S')
+logging.basicConfig(filename='main_log.log', encoding='utf-8', level=logging.INFO, format='%(asctime)s %(levelname)s: %(message)s',  datefmt='%m/%d/%Y %H:%M:%S')
 
 """
 Initiate parser for main_config.ini 
@@ -36,7 +51,7 @@ main_config.ini is the main setup file.
 To only run parts of the program, edit main_config.ini.
 """
 parser_main = configparser.ConfigParser()
-parser_main.read('/localhome/studenter/mikaellv/Project/main_config.ini')
+parser_main.read('/localhome/studenter/renatask/Project/main_config.ini')
 root = parser_main['main']['root']
 download_path = root + 'unprocessed_downloads/'
 shapefile_path = parser_main['main']['shapefile_path']
@@ -173,27 +188,29 @@ if parser_main.getboolean('main','build_data'):
         masks = paths_to_mask_tiles)
 
 if parser_main.getboolean('main','ML'):
-    if parser_main.getboolean('ML','train'):
-        train_folder = parser_main['ML']['train_path']
-        valid_folder = parser_main['ML']['val_path']
-        mask_folder = '/localhome/studenter/mikaellv/Project/data/tiled_masks/roros'
-        mask_folder_val ='/localhome/studenter/mikaellv/Project/data/tiled_masks/gaula_melhus'
+    train_folder = parser_main['ML']['train_path']
+    valid_folder = parser_main['ML']['val_path']
+    mask_folder = parser_main['ML']['train_path'] + '/masks'
+    mask_folder_val = parser_main['ML']['val_path'] + '/masks'
 
-        num_training_samples = len(os.listdir(train_folder))#len(os.listdir(train_folder+'/images'))
+    if parser_main.getboolean('ML','train'):
+
+        num_training_samples = len(os.listdir(train_folder))#len(os.lsistdir(train_folder+'/images'))
         num_valid_samples = len(os.listdir(train_folder))#len(os.listdir(valid_folder+'/images'))
 
         #ml = ML_utils()
 
-        ML_main(train_folder, valid_folder, mask_folder, mask_folder_val)
+        ML_main(train_folder+'images', valid_folder+'images', mask_folder, mask_folder_val)
         
     if parser_main.getboolean('ML','val'):
         ml = ML_utils()
 
-        data = '/localhome/studenter/renatask/Project/data/tiled_images/melhus_lakes_S1A_IW_GRDH_1SDV_20200628T164709'
-        masks = '/localhome/studenter/renatask/Project/data/tiled_masks/melhus_lakes'
-        val_gen = ml.DataGenerator(data, masks)
+        # data = '/localhome/studenter/renatask/Project/data/tiled_images/melhus_lakes_S1A_IW_GRDH_1SDV_20200628T164709'
+        # masks = '/localhome/studenter/renatask/Project/data/tiled_masks/melhus_lakes'
+        # val_gen = ml.DataGenerator(data, masks)
+        val_gen = ml.DataGenerator(valid_folder+'images', mask_folder_val)
 
-        model = keras.models.load_model("model2")
+        model = keras.models.load_model("/localhome/studenter/renatask/Project/ML/models/model_test")
         model.summary()
 
         max_show = 20
@@ -206,11 +223,17 @@ if parser_main.getboolean('main','ML'):
         predictions = []
         segmentations = []
         for i in range(0,len(pred),10):
+            #p = give_color_to_seg_img(pred[i])
+            p = np.argmax(pred[i], axis=-1)
+            print(pred[i])
+            print(p)
             predictions.append(np.argmax(pred[i], axis=-1))
             segmentations.append(np.argmax(segs[i], axis=-1))
 
         for i in range(max_show):
-            plotPred(imgs[i], segs[i], pred[i])
+            plotPred(imgs[i], segs[i], p)
+            
+            
             
 
         print(f'preds: {predictions[1]}')
@@ -228,7 +251,7 @@ if parser_main.getboolean('main','ML'):
         print(f"segmentation 1d: {segs1D.shape}")
         print(f"predictions 1d: {pred1D.shape}")
 
-        print(f"Confusion matrix: \n {tf.math.confusion_matrix(segs1D, pred1D, num_classes=ml.N_CLASSES+1)}")
+        print(f"Confusion matrix: \n {tf.math.confusion_matrix(segs1D, pred1D, num_classes=ml.N_CLASSES)}")
 
         precision = precision_score(segs1D, pred1D, average='weighted')
         recall = recall_score(segs1D, pred1D, average='weighted')

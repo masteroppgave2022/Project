@@ -1,5 +1,6 @@
 import matplotlib.pyplot as plt
 import numpy as np
+from sklearn.utils import shuffle
 import tensorflow as tf
 import pandas as pd
 # import tensorflow_datasets as tfds
@@ -81,7 +82,7 @@ class ML_utils():
         for i in image:
             for e in i:
                 for a in range(len(e)):
-                    if math.isnan(e[a]): e[a]=0
+                    if math.isnan(e[a]): e[a]=-1 # changed from 0 to -1
 
         return image, mask
 
@@ -104,14 +105,14 @@ class ML_utils():
 
     def give_color_to_seg_img(self, seg):
         n_classes=self.N_CLASSES
-        seg_img = np.zeros( (seg.shape[0],seg.shape[1],3) ).astype('float')
+        seg_img = np.zeros( (seg.shape[0],seg.shape[1],2) ).astype('float')
         colors = sns.color_palette("hls", n_classes)
 
         for c in range(n_classes):
             segc = (seg == c)
             seg_img[:,:,0] += (segc*( colors[c][0] ))
             seg_img[:,:,1] += (segc*( colors[c][1] ))
-            seg_img[:,:,2] += (segc*( colors[c][2] ))
+            #seg_img[:,:,2] += (segc*( colors[c][2] ))
 
         return(seg_img)
 
@@ -129,7 +130,19 @@ class ML_utils():
                         image, mask = self.LoadImage(file, path, mask_folder)
                         mask_binned = self.bin_image(mask)
                         labels = self.getSegmentationArr(mask_binned, classes)
-                        imgs.append(image[:,:,1:4])
+                        imgs.append(image[:,:,0:3])  #uses the first 3 bands 
+
+                        # im = np.array([image[:,:,0], image[:,:,1], image[:,:,0]/image[:,:,1]])
+                        # ima = np.rollaxis(im,0,3)
+                        # #print(ima)
+
+                        # for i in ima:
+                        #     for e in i:
+                        #         for a in range(len(e)):
+                        #             if math.isnan(e[a]): e[a]=-1 # changed from 0 to -1
+
+                        # imgs.append(ima)  #uses the first 2 bands and the 0/1 as a third band
+
                         # segs.append(mask)
                         # imgs.append(image)
                         segs.append(labels)
@@ -215,7 +228,7 @@ def ML_main(train_folder,valid_folder, mask_folder, mask_folder_val ):
     model.summary()
 
     model.compile(
-        optimizer=Adam(),
+        optimizer=Adam(),                           # Adam(learning_rate=0.00001) sett til lavere verdi
         loss='categorical_crossentropy',
         metrics=['categorical_crossentropy', 'acc'],
     )
@@ -223,7 +236,7 @@ def ML_main(train_folder,valid_folder, mask_folder, mask_folder_val ):
     log_dir = "logs/fit/" + datetime.datetime.now().strftime("%Y%m%d-%H%M%S")
     tensorboard_callback = tf.keras.callbacks.TensorBoard(log_dir=log_dir, histogram_freq=1)
     
-    checkpoint = ModelCheckpoint('model.hdf5', monitor='val_acc', verbose=1, save_best_only=True, mode='max')
+    checkpoint = ModelCheckpoint('model.hdf5', monitor='val_acc', verbose=1, save_best_only=False, mode='max')
 
     TRAIN_STEPS = num_training_samples//ml.BATCH_SIZE+1
     VAL_STEPS = num_valid_samples//ml.BATCH_SIZE+1
@@ -233,9 +246,10 @@ def ML_main(train_folder,valid_folder, mask_folder, mask_folder_val ):
         validation_data=val_gen,
         epochs=ml.EPOCHS1,
         steps_per_epoch=TRAIN_STEPS,
-        callbacks=[tensorboard_callback], #checkpoint,
-        workers=0,
+        callbacks=[tensorboard_callback, checkpoint], #checkpoint,
+        #workers=0,
         verbose=1,
+        shuffle=True,
         validation_steps=VAL_STEPS,
     )
 
@@ -249,21 +263,22 @@ def ML_main(train_folder,valid_folder, mask_folder, mask_folder_val ):
         metrics=['categorical_crossentropy', 'acc'],
     )
 
-    # history2 = model.fit(
-    #     train_gen,
-    #     validation_data=val_gen,
-    #     epochs=ml.EPOCHS2,
-    #     steps_per_epoch=TRAIN_STEPS,
-    #     callbacks=[checkpoint, tensorboard_callback],
-    #     workers=0,
-    #     verbose=1,
-    #     validation_steps=VAL_STEPS,
-    # )
+    history2 = model.fit(
+        train_gen,
+        validation_data=val_gen,
+        epochs=ml.EPOCHS2,
+        steps_per_epoch=TRAIN_STEPS,
+        callbacks=[checkpoint, tensorboard_callback],
+        #workers=0,
+        verbose=1,
+        shuffle=True,
+        validation_steps=VAL_STEPS,
+    )
 
     model.save(ml.model_name)
 
     ml.plot_history(history1)
-    #ml.plot_history(history2)
+    ml.plot_history(history2)
 
     max_show = 20
     imgs, segs = next(val_gen)
@@ -276,7 +291,7 @@ def ML_main(train_folder,valid_folder, mask_folder, mask_folder_val ):
         segmentations.append(np.argmax(segs[i], axis=-1))
 
     for i in range(max_show):
-        plotPred(imgs[i], segs[i], pred[i])
+        plotPred(imgs[i], segs[i], predictions[i])
 
     # for i in range(max_show):
     #    plotPred(imgs[i], np.argmax(segs[i], axis=-1), np.argmax(pred[i], axis=-1))
