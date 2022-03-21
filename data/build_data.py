@@ -64,7 +64,6 @@ def tile_write(image_path,output_path,size=(256,256)):
     meta = image.meta.copy()
     
     for window, transform in get_tiles(image,size[0],size[1]):
-        print(window)
         meta['transform'] = transform
         if window.width == size[1] and window.height == size[0]:
             meta['width'],meta['height'] = window.width,window.height

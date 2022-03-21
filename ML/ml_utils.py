@@ -26,11 +26,12 @@ from sklearn.metrics import precision_score
 from sklearn.metrics import recall_score
 from sklearn.metrics import confusion_matrix
 from sklearn.metrics import f1_score
+from skimage import exposure
 
 class ML_utils():
     def __init__(self) -> None:
         self.parser_ml = configparser.ConfigParser()
-        self.parser_ml.read('/localhome/studenter/renatask/Project/ML/ml_config.ini')
+        self.parser_ml.read('/localhome/studenter/mikaellv/Project/ML/ml_config.ini')
 
         self.model_name = self.parser_ml['model']['NAME']
 
@@ -78,15 +79,21 @@ class ML_utils():
         # Convert dimensions to standard (n,height,width) --> (height,width,n)
         image = np.rollaxis(image_arr,0,3)
         mask = np.rollaxis(mask_arr,0,3)
-
+        # Histogram stretch and normalize:
+        bands = image.shape[-1]
+        rescaled_image = np.zeros(image.shape,dtype="float32")
+        for b in range(bands):
+            p2 = np.percentile(image[:,:,b],2)
+            p98 = np.percentile(image[:,:,b],98)
+            rescaled_band = exposure.rescale_intensity(image[:,:,b],in_range=(p2,p98),out_range=(0,1))
+            rescaled_image[:,:,b] = rescaled_band
+        image = rescaled_image
+        # Check for NaN values
         for i in image:
             for e in i:
                 for a in range(len(e)):
-                    if math.isnan(e[a]): e[a]=-1 # changed from 0 to -1
-
+                    if math.isnan(e[a]): e[a]=255
         return image, mask
-
-
 
     def bin_image(self, mask):
         bins = np.array([pixel_val for pixel_val in self.CLASSES.keys()])
@@ -119,7 +126,7 @@ class ML_utils():
     def DataGenerator(self, path, mask_folder):
         batch_size=self.BATCH_SIZE
         classes=self.N_CLASSES
-        files = os.listdir(path)#os.listdir(path+'/images')
+        files = [f for f in os.listdir(path) if not f.startswith('.')] #os.listdir(path+'/images')
         while True:
             for i in range(0, len(files), batch_size):
                 batch_files = files[i : i+batch_size]
@@ -170,18 +177,18 @@ class ML_utils():
                 yield np.array(imgs), np.array(segs)
 
     def Unet(self):
-        N = 4
-        inp = layers.Input(shape=(None, None, N))
-        l1 = layers.Conv2D(3, (1, 1))(inp)
-        base_model = sm.Unet('resnet50', classes=self.N_CLASSES, activation='softmax', encoder_weights='imagenet',encoder_freeze=True)
-        out = base_model(l1)
-        model = keras.models.Model(inp, out, name=base_model.name)
+        # N = 3
+        # inp = layers.Input(shape=(None, None, N))
+        # l1 = layers.Conv2D(3, (1, 1))(inp)
+        base_model = sm.Unet('resnet50', classes=self.N_CLASSES, activation='softmax', encoder_weights='imagenet', input_shape=[256, 256, 3], encoder_freeze=True)
+        # out = base_model(inp)
+        # model = keras.models.Model(inp, out, name=base_model.name)
         #model = sm.Unet('resnet50', classes=self.N_CLASSES, activation='softmax', encoder_weights='imagenet', input_shape=[self.HEIGHT, self.WIDTH, 4], encoder_freeze=True)
         #tf.keras.utils.plot_model(model, show_shapes=True, to_file=self.model_name+'.png')
-        return model
+        return base_model
 
     def Unet2(self):
-        N = 4
+        N = 3
         inp = layers.Input(shape=(None, None, N))
         l1 = layers.Conv2D(3, (1, 1))(inp)
         base_model = sm.Unet('resnet50', classes=self.N_CLASSES, activation='softmax')
@@ -209,9 +216,6 @@ class ML_utils():
 
 def ML_main(train_folder,valid_folder, mask_folder, mask_folder_val ):
 
-    # train_folder = parser_main['ML']['train_path']
-    # valid_folder = parser_main['ML']['val_path']
-
     num_training_samples = len(os.listdir(train_folder))#len(os.listdir(train_folder+'/images'))
     num_valid_samples = len(os.listdir(train_folder))#len(os.listdir(valid_folder+'/images'))
 
@@ -222,13 +226,13 @@ def ML_main(train_folder,valid_folder, mask_folder, mask_folder_val ):
 
     imgs, segs = next(train_gen)
 
-    plotMaskedImage(imgs[1], segs[1])
+    plotMaskedImage(imgs[5], segs[5])
 
-    model = ml.Unet3()
+    model = ml.Unet()
     model.summary()
 
     model.compile(
-        optimizer=Adam(),                           # Adam(learning_rate=0.00001) sett til lavere verdi
+        optimizer=Adam(learning_rate=1e-4),
         loss='categorical_crossentropy',
         metrics=['categorical_crossentropy', 'acc'],
     )
@@ -275,10 +279,10 @@ def ML_main(train_folder,valid_folder, mask_folder, mask_folder_val ):
         validation_steps=VAL_STEPS,
     )
 
-    model.save(ml.model_name)
+    model.save('/localhome/studenter/mikaellv/Project/ML/models/' + ml.model_name)
 
-    ml.plot_history(history1)
-    ml.plot_history(history2)
+    # ml.plot_history(history1)
+    # ml.plot_history(history2)
 
     max_show = 20
     imgs, segs = next(val_gen)

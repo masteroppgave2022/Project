@@ -17,6 +17,7 @@ sm.set_framework('tf.keras')
 sm.framework()
 from data.plot_data import plotMaskedImage
 from data.plot_data import plotPred
+import data.plot_data as pd
 
 from sklearn.metrics import precision_score
 from sklearn.metrics import recall_score
@@ -104,14 +105,14 @@ if parser_main.getboolean('main', 'preprocess'):
                 continue
             # Processing pipeline:
             try:
-                subset = pp.subset(product, shapefile_path+shape+"/"+shape, shape+"_"+file, subset_path, "BEAM-DIMAP")
+                subset = pp.subset(product, shapefile_path+shape+"/"+shape)
             except Exception as e:
                 logging.info(str(e) + f"\n\n[SKIPPING] Snappy could not read file: {file}.")
                 continue
             if subset: # Check if subset is empty (None)
                 logging.info(f"[INFO] Subset {shape+'_'+file} created")
                 try:
-                    subset_O = pp.apply_orbit_file(product=subset)
+                    subset_O = pp.apply_orbit_file(subset)
                     logging.info(f"[INFO] Orbitfile applied to {name}")
                 except:
                     logging.info(f"[INFO] Orbit file failed/not found for {name}.")
@@ -120,9 +121,13 @@ if parser_main.getboolean('main', 'preprocess'):
                 logging.info(f"[INFO] Thermal noise removal for {name} finished.")
                 subset_O_TNR_C = pp.calibrate(subset_O_TNR)
                 logging.info(f"[INFO] Calibration for {name} finished.")
-                subset_O_TNR_C_TC = pp.terrain_correction(subset_O_TNR_C)
+                subset_O_TNR_C_S = pp.speckle_filter(subset_O_TNR_C)
+                logging.info(f"[INFO] Speckle filter of {name} finished.")
+                subset_O_TNR_C_S_TC = pp.terrain_correction(subset_O_TNR_C_S)
                 logging.info(f"[INFO] Terrain correction for {name} finished.")
-                pp.save_product(subset_O_TNR_C_TC, name, save_path)
+                subset_O_TNR_C_S_TC_DEM = pp.add_elevation_band(subset_O_TNR_C_S_TC)
+                logging.info(f"[INFO] Elevation band added to {name}.")
+                pp.save_product(subset_O_TNR_C_S_TC_DEM, name, save_path)
                 pp.clip_raster(save_path+name+'.tif',shapefile_path+shape,save_path,name.split('.')[0])
                 logging.info(f"[INFO] Subset {name} preprocessed and saved.")
 
@@ -188,29 +193,37 @@ if parser_main.getboolean('main','build_data'):
         masks = paths_to_mask_tiles)
 
 if parser_main.getboolean('main','ML'):
-    train_folder = parser_main['ML']['train_path']
-    valid_folder = parser_main['ML']['val_path']
-    mask_folder = parser_main['ML']['train_path'] + '/masks'
-    mask_folder_val = parser_main['ML']['val_path'] + '/masks'
+    dataset = parser_main['ML']['dataset']
+    train_images = 'data/datasets/' + dataset + '/train/images'
+    train_masks = 'data/datasets/' + dataset + '/train/masks'
+    val_images = 'data/datasets/' + dataset + '/val/images'
+    val_masks = 'data/datasets/' + dataset + '/val/masks'
 
     if parser_main.getboolean('ML','train'):
+        num_train_samples = len([img for img in os.listdir(train_images) if not img.startswith('.')]) # Exclude hidden files starting with '.'
+        num_val_samples = len([img for img in os.listdir(train_masks) if not img.startswith('.')])
 
-        num_training_samples = len(os.listdir(train_folder))#len(os.lsistdir(train_folder+'/images'))
-        num_valid_samples = len(os.listdir(train_folder))#len(os.listdir(valid_folder+'/images'))
-
-        #ml = ML_utils()
-
+<<<<<<< Updated upstream
         ML_main(train_folder+'images', valid_folder+'images', mask_folder, mask_folder_val)
+=======
+        ML_main(train_images, val_images, train_masks, val_masks)
+>>>>>>> Stashed changes
         
     if parser_main.getboolean('ML','val'):
         ml = ML_utils()
 
+<<<<<<< Updated upstream
         # data = '/localhome/studenter/renatask/Project/data/tiled_images/melhus_lakes_S1A_IW_GRDH_1SDV_20200628T164709'
         # masks = '/localhome/studenter/renatask/Project/data/tiled_masks/melhus_lakes'
         # val_gen = ml.DataGenerator(data, masks)
         val_gen = ml.DataGenerator(valid_folder+'images', mask_folder_val)
 
         model = keras.models.load_model("/localhome/studenter/renatask/Project/ML/models/model_test")
+=======
+        val_gen = ml.DataGenerator(val_images, val_masks)
+
+        model = keras.models.load_model("/localhome/studenter/mikaellv/Project/ML/models/test_model_2")
+>>>>>>> Stashed changes
         model.summary()
 
         max_show = 20

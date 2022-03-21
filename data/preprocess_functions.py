@@ -82,34 +82,22 @@ class Preprocess():
         #return imgplot
 
     def apply_orbit_file(self, product):
-        print("\napplying orbit")
         parameters = HashMap() 
         GPF.getDefaultInstance().getOperatorSpiRegistry().loadOperatorSpis()
         parameters.put('Apply-Orbit-File', True)
-        parameters.put('orbitType', 'Sentinel Precise (Auto Download)') 
-        parameters.put('polyDegree', '3') 
-        parameters.put('continueOnFail', 'false')
-
         apply_orbit_file = GPF.createProduct('Apply-Orbit-File', parameters, product)
         return apply_orbit_file
 
     def add_shape_file(self, product, path_to_shapefile):
-        print("\napplying shapefile")
         r = shapefile.Reader(path_to_shapefile)
         g=[]
         for s in r.shapes(): 
             g.append(pygeoif.geometry.as_shape(s))
-
         m = pygeoif.MultiPoint(g)
-
         wkt = str(m.wkt).replace("MULTIPOINT", "POLYGON(") + ")"
-
         SubsetOp = snappy.jpy.get_type('org.esa.snap.core.gpf.common.SubsetOp') 
-
         bounding_wkt = wkt
-
         geometry = WKTReader().read(bounding_wkt)
-
         HashMap = snappy.jpy.get_type('java.util.HashMap') 
         GPF.getDefaultInstance().getOperatorSpiRegistry().loadOperatorSpis() 
         parameters = HashMap()
@@ -119,25 +107,18 @@ class Preprocess():
         return product_subset
 
     def apply_thermal_noise_removal(self, product):
-        print('\nthermal noise removal...')
         parameters = HashMap()
         parameters.put('removeThermalNoise', True)
         output = GPF.createProduct('ThermalNoiseRemoval', parameters, product)
         return output
 
     def calibrate(self, product):
-        """
-        TODO: change to correct band and polarisation
-        """
-        print("\ncalibrating...")
         parameters = HashMap() 
-        parameters.put('outputSigmaBand', True) 
-        parameters.put('outputBetaBand', True)
-        #parameters.put('sourceBands', 'Intensity_VV') 
-        #parameters.put('selectedPolarisations', "VV") 
+        parameters.put('outputSigmaBand', True)
+        parameters.put('sourceBands', 'Intensity_VH,Intensity_VV') 
+        parameters.put('selectedPolarisations', 'VH,VV')
         parameters.put('outputImageScaleInDb', False)
         product_calibrated = GPF.createProduct("Calibration", parameters, product)
-
         return product_calibrated
         
     def multilook(self, product):
@@ -154,138 +135,71 @@ class Preprocess():
 
 
     def speckle_filter(self, product):
-        """
-        TODO: check values
-        """
-        print("\napplying speckle filter...")
-        filterSizeY = '5' 
-        filterSizeX = '5' 
         parameters = HashMap()
-        #parameters.put('sourceBands', 'Sigma0_VV') 
-        parameters.put('filter', 'Lee') 
-        parameters.put('filterSizeX', filterSizeX) 
-        parameters.put('filterSizeY', filterSizeY) 
-        #parameters.put('dampingFactor', '2') 
-        #parameters.put('estimateENL', 'true') 
-        #parameters.put('enl', '1.0') 
-        parameters.put('numLooksStr', '1') 
-        parameters.put('targetWindowSizeStr', '3x3') 
-        parameters.put('sigmaStr', '0.9') 
-        parameters.put('anSize', '50')
+        parameters.put('sourceBands', 'Sigma0_VV,Sigma0_VH') 
+        parameters.put('filter', 'Frost') 
+        parameters.put('filterSizeX', '5') 
+        parameters.put('filterSizeY', '5')
         speckle_filter = snappy.GPF.createProduct('Speckle-Filter', parameters, product)
-
         return speckle_filter
 
     def terrain_correction(self, product):
-        """
-        TODO: check 
-        """
-        print("\napplying terrain correction...")
         parameters = HashMap() 
-        parameters.put('demResamplingMethod', 'BILINEAR_INTERPOLATION') 
-        parameters.put('imgResamplingMethod', 'BILINEAR_INTERPOLATION')
-        # parameters.put('demName', 'ASTER 1sec GDEM') #ASTER 1Sec GDEM SRTM 3Sec
         parameters.put('saveSelectedSourceBand', True)
         parameters.put('demName', 'External DEM')
         parameters.put('externalDEMFile', '/localhome/studenter/renatask/Project/data/DEM_merge/DEM_merge.tif')
         parameters.put('pixelSpacingInMeter', 10.0)
         parameters.put('nodataValueAtSea', False)
-        #parameters.put('sourceBands', 'Sigma0_VV')
         terrain_corrected = GPF.createProduct("Terrain-Correction", parameters, product)
+        return terrain_corrected
     
-        return terrain_corrected
-
-    def terrain_flattening(self, product):
-        """
-        TODO: check 
-        """
-        print("\napplying terrain flattening...")
-        parameters = HashMap() 
-        parameters.put('demResamplingMethod', 'BICUBIC_INTERPOLATION') 
-        parameters.put('imgResamplingMethod', 'BICUBIC_INTERPOLATION')
-        parameters.put('demName', 'GETASSE30') #ASTER 1Sec GDEM SRTM 3Sec
-        terrain_corrected = GPF.createProduct("Terrain-Flattening", parameters, product)
-
-        return terrain_corrected
+    def add_elevation_band(self, product):
+        parameters = HashMap()
+        parameters.put('demName', 'External DEM')
+        parameters.put('externalDEMFile', '/localhome/studenter/renatask/Project/data/DEM_merge/DEM_merge.tif')
+        added_elevation = GPF.createProduct("AddElevation", parameters, product)
+        return added_elevation
     
     def save_product(self, product, name, path, type="GeoTIFF"):
-        """
-        Type = "BEAM-DIMAP" for snap, else "GeoTIFF"
-        """
+        """ Type = "BEAM-DIMAP" for snap, else "GeoTIFF" """
         ProductIO.writeProduct(product, path+name, type)
 
     def geopos_to_wkt(self, geopos):
         lat = []
         long =[]
-
         for e in geopos:
             lat.append(e.lat)
             long.append(e.lon)
-        
         polygon_geom = Polygon(zip(long, lat))
-        #print(polygon_geom)
-        # crs = {'init': 'epsg:4326'}
         polygon = gpd.GeoDataFrame(crs='epsg:4326', geometry=[polygon_geom])       
-        #print(polygon.geometry)
-        #geometry = gpd.points_from_xy(long, lat, crs="EPSG:4326")
-        #wkt = geometry.GeoSeries.to_wkt()
-        #polygon.to_file(filename='polygon.shp', driver="ESRI Shapefile")
         return polygon
     
-    def subset(self, product, shape, name, save_path, type = "GeoTIFF"):
-
+    def subset(self, product, shape):
         """
         Type = "BEAM-DIMAP" for snap, else "GeoTIFF"
         """
         GeoPos = snappy.ProductUtils.createGeoBoundary(product, 1)
-        
         scene = self.geopos_to_wkt(GeoPos)
-
         r = shapefile.Reader(shape)
         g=[]
         for s in r.shapes(): 
             g.append(pygeoif.geometry.as_shape(s))
-
         m = pygeoif.MultiPoint(g)
-
         wkt = str(m.wkt).replace("MULTIPOINT", "POLYGON(") + ")"
-        
         shape_wkt = shapely.wkt.loads(wkt)
-
         contains = scene.contains(shape_wkt)
-        # print(contains)
-
         SubsetOp = snappy.jpy.get_type('org.esa.snap.core.gpf.common.SubsetOp') 
-
         bounding_wkt = wkt
-
         geometry = WKTReader().read(bounding_wkt)
-
         HashMap = snappy.jpy.get_type('java.util.HashMap') 
         GPF.getDefaultInstance().getOperatorSpiRegistry().loadOperatorSpis() 
         parameters = HashMap()
         parameters.put('copyMetadata', True)
         parameters.put('geoRegion', geometry)
-
         if contains.bool():
             product_subset = snappy.GPF.createProduct('Subset', parameters, product)
             return product_subset
         else: return None
-        #     print("\napplying shapefile")
-        #     self.save_product(product_subset, name, save_path, type)
-        # """
-        # try:
-        #     product_subset = snappy.GPF.createProduct('Subset', parameters, product)
-        #     print("\napplying shapefile")
-        #     intersects = True
-        # except:
-        #     print(f"Product and shapefile does not intersect for {name}")
-        #     intersects = False
-
-        # if intersects:
-        #     self.save_product(product_subset, name, save_path, type)
-        # """
-        # return bool(contains.bool())
 
     def clip_shapefile(self, source_shp, mask_shps, destination):
         print("[INFO] Reading FKB_vann ...")
