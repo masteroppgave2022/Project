@@ -70,10 +70,10 @@ def plotMaskedImage(image, mask):
     #print(image[1])
     fig, axs = plt.subplots(1, 3, figsize=(25,25))
     plt.tight_layout()
-    #axs[0].imshow(10*np.log10(image[:, :, 0]), cmap='ocean') #image[:, :, 1]
+    axs[0].imshow(10*np.log10(image[:, :, 0]), cmap='ocean') #image[:, :, 1]
     #axs[0].imshow((image[:,:,1]), cmap='ocean') #image[:, :, 1]
     #axs[0].imshow(255*(1/16)*np.log2(image[:, :, 0]), cmap='ocean') #image[:, :, 1]
-    axs[0].hist((255*(1/16)*np.log2(image)).ravel(), bins=256, range=(-255.0, 255.0), fc='k', ec='k')
+    #axs[0].hist((255*(1/16)*np.log2(image)).ravel(), bins=256, range=(-255.0, 255.0), fc='k', ec='k')
     #axs[0].hist(image.ravel(), bins=256, range=(-1.0, 1.0), fc='k', ec='k')
     #rasterio.plot.show(image, ax=axs[0], adjust='linear')
     axs[0].set_title('Original Image')
