@@ -28,6 +28,8 @@ from sklearn.metrics import confusion_matrix
 from sklearn.metrics import f1_score
 from skimage import exposure
 
+import albumentations as A
+
 class ML_utils():
     def __init__(self) -> None:
         self.parser_ml = configparser.ConfigParser()
@@ -100,6 +102,16 @@ class ML_utils():
         new_mask = np.digitize(mask, bins)
         return new_mask
 
+    def image_augmentation(self, image:np.array, mask:np.array):
+        transform = A.Compose([
+            A.RandomRotate90(p=0.5),
+            A.ChannelShuffle(p=0.2),
+            A.HorizontalFlip(p=0.5),
+            A.VerticalFlip(p=0.5)
+        ])
+        transformed = transform(image=image, mask=mask)
+        return transformed['image'], transformed['mask']
+
     def getSegmentationArr(self, image, classes):
         width=self.WIDTH
         height=self.HEIGHT
@@ -123,7 +135,7 @@ class ML_utils():
 
         return(seg_img)
 
-    def DataGenerator(self, path, mask_folder):
+    def DataGenerator(self, path, mask_folder, train=False):
         batch_size=self.BATCH_SIZE
         classes=self.N_CLASSES
         files = [f for f in os.listdir(path) if not f.startswith('.')] #os.listdir(path+'/images')
@@ -135,6 +147,7 @@ class ML_utils():
                 for file in batch_files:
                     if not file.startswith('.'):
                         image, mask = self.LoadImage(file, path, mask_folder)
+                        if train: image, mask = self.image_augmentation(image,mask)
                         mask_binned = self.bin_image(mask)
                         labels = self.getSegmentationArr(mask_binned, classes)
                         imgs.append(image[:,:,0:3])  #uses the first 3 bands 
@@ -221,18 +234,18 @@ def ML_main(train_folder,valid_folder, mask_folder, mask_folder_val ):
 
     ml = ML_utils()
 
-    train_gen = ml.DataGenerator(train_folder, mask_folder)
-    val_gen = ml.DataGenerator(valid_folder, mask_folder_val)
+    train_gen = ml.DataGenerator(train_folder, mask_folder, train=True)
+    val_gen = ml.DataGenerator(valid_folder, mask_folder_val, train=True)
 
     imgs, segs = next(train_gen)
 
-    plotMaskedImage(imgs[5], segs[5])
+    # plotMaskedImage(imgs[5], segs[5])
 
     model = ml.Unet()
     model.summary()
 
     model.compile(
-        optimizer=Adam(learning_rate=1e-4),
+        optimizer=Adam(learning_rate=1e-5),
         loss='categorical_crossentropy',
         metrics=['categorical_crossentropy', 'acc'],
     )
@@ -284,18 +297,18 @@ def ML_main(train_folder,valid_folder, mask_folder, mask_folder_val ):
     # ml.plot_history(history1)
     # ml.plot_history(history2)
 
-    max_show = 20
-    imgs, segs = next(val_gen)
-    pred = model.predict(imgs)
+    # max_show = 20
+    # imgs, segs = next(val_gen)
+    # pred = model.predict(imgs)
 
-    predictions = []
-    segmentations = []
-    for i in range(len(pred)):
-        predictions.append(np.argmax(pred[i], axis=-1))
-        segmentations.append(np.argmax(segs[i], axis=-1))
+    # predictions = []
+    # segmentations = []
+    # for i in range(len(pred)):
+    #     predictions.append(np.argmax(pred[i], axis=-1))
+    #     segmentations.append(np.argmax(segs[i], axis=-1))
 
-    for i in range(max_show):
-        plotPred(imgs[i], segs[i], predictions[i])
+    # for i in range(max_show):
+    #     plotPred(imgs[i], segs[i], predictions[i])
 
     # for i in range(max_show):
     #    plotPred(imgs[i], np.argmax(segs[i], axis=-1), np.argmax(pred[i], axis=-1))

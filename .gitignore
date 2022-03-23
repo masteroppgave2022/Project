@@ -187,3 +187,6 @@ data/logs
 model
 model2
 logs
+ML/models/
+nohup.out
+data/temporary.py

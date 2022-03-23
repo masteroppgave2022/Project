@@ -58,7 +58,6 @@ def tile_write(image_path,output_path,size=(256,256)):
     output_path (str) :: path to write to
     size (tuple) :: (height,width) of desired tiles
     """
-    
     output_filename = 'tile_{}-{}.tif'
     image = rasterio.open(image_path)
     meta = image.meta.copy()
@@ -71,35 +70,71 @@ def tile_write(image_path,output_path,size=(256,256)):
             with rasterio.open(outpath, 'w', **meta) as outds:
                 outds.write(image.read(window=window))
 
-def build_dataset(destination_path:str, dataset_name:str, split:float, images:list, masks:list):
+def get_paths_to_data(path_to_images:str, path_to_masks:str, test_regions:list):
+    img_tile_root = 'data/tiled_images/'
+    mask_tile_root = 'data/tiled_masks/'
+    train_val_image_dirs, order_of_regions = [], []
+    train_val_images, train_val_masks, test_images, test_masks = [], [], [], []
+    for image in os.listdir(path_to_images):
+        if image.startswith('.'): continue
+        filename = image.split('.')[0]
+        region = filename.split('_S1')[0]
+        if region in test_regions:
+            test_images.append(path_to_images+image)
+            test_masks.append(path_to_masks+region+'.tif')
+        else:
+            train_val_image_dirs.append(img_tile_root+filename)
+            order_of_regions.append(region)
+    for image in train_val_image_dirs:
+        for tile in os.listdir(image):
+            train_val_images.append(image+'/'+tile)
+    for region in order_of_regions:
+        for tile in os.listdir(mask_tile_root+region):
+            train_val_masks.append(mask_tile_root+region+'/'+tile)
+    return train_val_images, train_val_masks, test_images, test_masks
+
+def build_dataset(
+    destination_path:str,
+    dataset_name:str,
+    val_split:float,
+    test_regions:float,
+    path_to_images:str,
+    path_to_masks:str
+    ):
     # Check if dataset already exists:
     if os.path.exists(destination_path + dataset_name):
         print(f"[SKIPPING] Dataset: {dataset_name}, already exists.")
         return None
+    # Get full paths to all train/val tiles:
+    imgs, masks, test_imgs, test_masks = get_paths_to_data(path_to_images,path_to_masks,test_regions)
     # Check if order matches:
-    for img, mask in zip(images,masks):
+    for img, mask in zip(imgs,masks):
         region_img = os.path.split(img)[0].split('/')[-1].split('_S1')[0]
         region_mask = os.path.split(mask)[0].split('/')[-1]
         tile_img = os.path.split(img)[1]
         tile_mask = os.path.split(mask)[1]
         if not region_img == region_mask:
-            raise Exception("Order of regions of masks does not correspond with that of images.")
+            raise Exception("[ERROR] Order of regions of masks does not correspond with that of images.")
         if not tile_img == tile_mask:
-            raise Exception("Order of tiles of masks does not correspond with that of images.")
+            raise Exception("[ERROR] Order of tiles of masks does not correspond with that of images.")
     # Create dataset directories
-    train_imgs_path = destination_path + dataset_name +'/train/images/'
-    train_masks_path = destination_path + dataset_name +'/train/masks/'
-    val_imgs_path = destination_path + dataset_name +'/val/images/'
-    val_masks_path = destination_path + dataset_name +'/val/masks/'
+    train_imgs_path = destination_path + dataset_name + '/train/images/'
+    train_masks_path = destination_path + dataset_name + '/train/masks/'
+    val_imgs_path = destination_path + dataset_name + '/val/images/'
+    val_masks_path = destination_path + dataset_name + '/val/masks/'
+    test_imgs_path = destination_path + dataset_name + '/test/images/'
+    test_masks_path = destination_path + dataset_name + '/test/masks/'
     os.makedirs(train_imgs_path)
     os.makedirs(train_masks_path)
     os.makedirs(val_imgs_path)
     os.makedirs(val_masks_path)
+    os.makedirs(test_imgs_path)
+    os.makedirs(test_masks_path)
     # Train/Val Split
-    train_imgs,val_imgs,train_masks,val_masks = train_test_split(images,masks,train_size=split)
+    train_imgs,val_imgs,train_masks,val_masks = train_test_split(imgs,masks,train_size=val_split)
     # Build datasets
     count = 1
-    extension = '.' + os.path.split(images[0])[1].split('.')[1]
+    extension = '.' + os.path.split(imgs[0])[1].split('.')[1]
     for img in train_imgs:
         shutil.copyfile(img,train_imgs_path+str(count)+extension)
         count += 1
@@ -114,6 +149,13 @@ def build_dataset(destination_path:str, dataset_name:str, split:float, images:li
     count = 1
     for mask in val_masks:
         shutil.copyfile(mask,val_masks_path+str(count)+extension)
+        count += 1
+    count = 1
+    for img in test_imgs:
+        shutil.copyfile(img,test_imgs_path+str(count)+extension)
+        count += 1
+    for mask in test_masks:
+        shutil.copyfile(mask,test_masks_path+str(count)+extension)
         count += 1
 
 

@@ -1,8 +1,7 @@
 import os
 import logging
 import configparser
-
-
+import json
 
 #####################   ML
 from ML.ml_utils import ML_utils 
@@ -52,7 +51,7 @@ main_config.ini is the main setup file.
 To only run parts of the program, edit main_config.ini.
 """
 parser_main = configparser.ConfigParser()
-parser_main.read('/localhome/studenter/renatask/Project/main_config.ini')
+parser_main.read('/localhome/studenter/mikaellv/Project/main_config.ini')
 root = parser_main['main']['root']
 download_path = root + 'unprocessed_downloads/'
 shapefile_path = parser_main['main']['shapefile_path']
@@ -106,30 +105,30 @@ if parser_main.getboolean('main', 'preprocess'):
             # Processing pipeline:
             try:
                 subset = pp.subset(product, shapefile_path+shape+"/"+shape)
+                if not subset: continue # Check if subset is empty (None)
             except Exception as e:
                 logging.info(str(e) + f"\n\n[SKIPPING] Snappy could not read file: {file}.")
                 continue
-            if subset: # Check if subset is empty (None)
-                logging.info(f"[INFO] Subset {shape+'_'+file} created")
-                try:
-                    subset_O = pp.apply_orbit_file(subset)
-                    logging.info(f"[INFO] Orbitfile applied to {name}")
-                except:
-                    logging.info(f"[INFO] Orbit file failed/not found for {name}.")
-                    break
-                subset_O_TNR = pp.apply_thermal_noise_removal(subset_O)
-                logging.info(f"[INFO] Thermal noise removal for {name} finished.")
-                subset_O_TNR_C = pp.calibrate(subset_O_TNR)
-                logging.info(f"[INFO] Calibration for {name} finished.")
-                subset_O_TNR_C_S = pp.speckle_filter(subset_O_TNR_C)
-                logging.info(f"[INFO] Speckle filter of {name} finished.")
-                subset_O_TNR_C_S_TC = pp.terrain_correction(subset_O_TNR_C_S)
-                logging.info(f"[INFO] Terrain correction for {name} finished.")
-                subset_O_TNR_C_S_TC_DEM = pp.add_elevation_band(subset_O_TNR_C_S_TC)
-                logging.info(f"[INFO] Elevation band added to {name}.")
-                pp.save_product(subset_O_TNR_C_S_TC_DEM, name, save_path)
-                pp.clip_raster(save_path+name+'.tif',shapefile_path+shape,save_path,name.split('.')[0])
-                logging.info(f"[INFO] Subset {name} preprocessed and saved.")
+            logging.info(f"[INFO] Subset {shape+'_'+file} created")
+            try:
+                subset_O = pp.apply_orbit_file(subset)
+                logging.info(f"[INFO] Orbitfile applied to {name}")
+            except:
+                logging.info(f"[INFO] Orbit file failed/not found for {name}.")
+                break
+            subset_O_TNR = pp.apply_thermal_noise_removal(subset_O)
+            logging.info(f"[INFO] Thermal noise removal for {name} finished.")
+            subset_O_TNR_C = pp.calibrate(subset_O_TNR)
+            logging.info(f"[INFO] Calibration for {name} finished.")
+            subset_O_TNR_C_S = pp.speckle_filter(subset_O_TNR_C)
+            logging.info(f"[INFO] Speckle filter of {name} finished.")
+            subset_O_TNR_C_S_TC = pp.terrain_correction(subset_O_TNR_C_S)
+            logging.info(f"[INFO] Terrain correction for {name} finished.")
+            subset_O_TNR_C_S_TC_DEM = pp.add_elevation_band(subset_O_TNR_C_S_TC)
+            logging.info(f"[INFO] Elevation band added to {name}.")
+            pp.save_product(subset_O_TNR_C_S_TC_DEM, name, save_path)
+            pp.clip_raster(save_path+name+'.tif',shapefile_path+shape,save_path,name.split('.')[0])
+            logging.info(f"[INFO] Subset {name} preprocessed and saved.")
 
 if parser_main.getboolean('main','build_data'):
     """ Build dataset with processed images and masks """
@@ -169,28 +168,17 @@ if parser_main.getboolean('main','build_data'):
             bd.tile_write(image_path=mask, output_path=out_path)
 
     # Build dataset of image- and mask tiles
+    logging.info("[INFO] Building dataset ...")
     dataset_name = parser_main['build_data']['dataset_name']
     train_val_split = float(parser_main['build_data']['train_val_split'])
-    image_paths = [tiled_images_root + img + '/' for img in os.listdir(tiled_images_root) if not img.startswith('.')]
-    order_of_regions = [region.split('/')[-2].split('_S1')[0] for region in image_paths]
-    paths_to_tiles = []
-    for image in image_paths:
-        for tile in os.listdir(image):
-            paths_to_tiles.append(image + tile)
-    mask_dirs = []
-    paths_to_mask_tiles = []
-    for region in order_of_regions:
-        dir = tiled_masks_root + region + '/'
-        mask_dirs.append(dir)
-    for directory in mask_dirs:
-        for tile in os.listdir(directory):
-            if not tile.startswith('.'): paths_to_mask_tiles.append(directory + tile)
-    logging.info("[INFO] Building dataset ...")
+    test_regions = json.loads(parser_main['build_data']['test_regions'])
     bd.build_dataset(destination_path = root + 'datasets/',\
         dataset_name = dataset_name,
-        split = train_val_split,
-        images = paths_to_tiles,
-        masks = paths_to_mask_tiles)
+        val_split = train_val_split,
+        test_regions = test_regions,
+        path_to_images = image_root,
+        path_to_masks = mask_root
+        )
 
 if parser_main.getboolean('main','ML'):
     dataset = parser_main['ML']['dataset']
@@ -203,27 +191,14 @@ if parser_main.getboolean('main','ML'):
         num_train_samples = len([img for img in os.listdir(train_images) if not img.startswith('.')]) # Exclude hidden files starting with '.'
         num_val_samples = len([img for img in os.listdir(train_masks) if not img.startswith('.')])
 
-<<<<<<< Updated upstream
-        ML_main(train_folder+'images', valid_folder+'images', mask_folder, mask_folder_val)
-=======
         ML_main(train_images, val_images, train_masks, val_masks)
->>>>>>> Stashed changes
         
     if parser_main.getboolean('ML','val'):
         ml = ML_utils()
 
-<<<<<<< Updated upstream
-        # data = '/localhome/studenter/renatask/Project/data/tiled_images/melhus_lakes_S1A_IW_GRDH_1SDV_20200628T164709'
-        # masks = '/localhome/studenter/renatask/Project/data/tiled_masks/melhus_lakes'
-        # val_gen = ml.DataGenerator(data, masks)
-        val_gen = ml.DataGenerator(valid_folder+'images', mask_folder_val)
-
-        model = keras.models.load_model("/localhome/studenter/renatask/Project/ML/models/model_test")
-=======
         val_gen = ml.DataGenerator(val_images, val_masks)
 
-        model = keras.models.load_model("/localhome/studenter/mikaellv/Project/ML/models/test_model_2")
->>>>>>> Stashed changes
+        model = keras.models.load_model("/localhome/studenter/mikaellv/Project/ML/models/test_model_3")
         model.summary()
 
         max_show = 20
@@ -232,45 +207,41 @@ if parser_main.getboolean('main','ML'):
         imgs, segs = next(val_gen)
         pred = model.predict(imgs)
 
-
         predictions = []
         segmentations = []
-        for i in range(0,len(pred),10):
-            #p = give_color_to_seg_img(pred[i])
-            p = np.argmax(pred[i], axis=-1)
-            print(pred[i])
-            print(p)
+        for i in range(max_show):
             predictions.append(np.argmax(pred[i], axis=-1))
             segmentations.append(np.argmax(segs[i], axis=-1))
 
         for i in range(max_show):
-            plotPred(imgs[i], segs[i], p)
+            # plotPred(imgs[i],segs[i],pred[i][:,:,0])
+            plotPred(imgs[i], segs[i], predictions[i])
             
             
             
 
-        print(f'preds: {predictions[1]}')
-        print(f'segs: {segmentations[1]}')
+        # print(f'preds: {predictions[1]}')
+        # print(f'segs: {segmentations[1]}')
 
-        segmentations = np.array(segmentations)
-        predictions = np.array(predictions)
+        # segmentations = np.array(segmentations)
+        # predictions = np.array(predictions)
 
-        print(f"segmentation shape: {segmentations.shape}")
-        print(f"predictions shape: {predictions.shape}")
+        # print(f"segmentation shape: {segmentations.shape}")
+        # print(f"predictions shape: {predictions.shape}")
 
-        pred1D = predictions.reshape(-1)
-        segs1D = segmentations.reshape(-1)
+        # pred1D = predictions.reshape(-1)
+        # segs1D = segmentations.reshape(-1)
 
-        print(f"segmentation 1d: {segs1D.shape}")
-        print(f"predictions 1d: {pred1D.shape}")
+        # print(f"segmentation 1d: {segs1D.shape}")
+        # print(f"predictions 1d: {pred1D.shape}")
 
-        print(f"Confusion matrix: \n {tf.math.confusion_matrix(segs1D, pred1D, num_classes=ml.N_CLASSES)}")
+        # print(f"Confusion matrix: \n {tf.math.confusion_matrix(segs1D, pred1D, num_classes=ml.N_CLASSES)}")
 
-        precision = precision_score(segs1D, pred1D, average='weighted')
-        recall = recall_score(segs1D, pred1D, average='weighted')
-        print(f'Precision score: {precision}')
-        print(f'Recall score: {recall}')
-        print(f'F1 score: {(2*precision*recall)/(recall+precision)}')
-        print(f"Confusion matrix: \n {confusion_matrix(segs1D, pred1D)}")
-        f1=f1_score(segs1D, pred1D, average='weighted')
-        print(f'F1 score: {f1}')
+        # precision = precision_score(segs1D, pred1D, average='weighted')
+        # recall = recall_score(segs1D, pred1D, average='weighted')
+        # print(f'Precision score: {precision}')
+        # print(f'Recall score: {recall}')
+        # print(f'F1 score: {(2*precision*recall)/(recall+precision)}')
+        # print(f"Confusion matrix: \n {confusion_matrix(segs1D, pred1D)}")
+        # f1=f1_score(segs1D, pred1D, average='weighted')
+        # print(f'F1 score: {f1}')
