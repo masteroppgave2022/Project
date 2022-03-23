@@ -216,16 +216,19 @@ class ML_utils():
         model = sm.Unet('resnet50', classes=self.N_CLASSES, activation='softmax', encoder_weights='imagenet', input_shape=[None, None, 3], encoder_freeze=True)
         return model
 
-    def plot_history(self, history):
+    def plot_history(self, history, name=None):
         """
         Must be adapted to the content of the history dataframe
         """
         history_frame1 = pd.DataFrame(history.history)
-        history_frame1.loc[:, ['loss', 'val_loss']].plot()
-        history_frame1.loc[:, ['categorical_crossentropy', 'val_categorical_crossentropy']].plot()
-        history_frame1.loc[:, ['acc', 'val_acc']].plot()
-        print(history_frame1)
-        plt.show()
+        val_loss_fig = history_frame1.loc[:, ['loss', 'val_loss']].plot().getfigure()
+        crossentropy_fig = history_frame1.loc[:, ['categorical_crossentropy', 'val_categorical_crossentropy']].plot().getfigure()
+        val_acc_fig = history_frame1.loc[:, ['acc', 'val_acc']].plot().getfigure()
+        if name:
+            val_loss_fig.savefig('val_loss_' + name + '.png')
+            crossentropy_fig.savefig('crossentropy_' + name + '.png')
+            val_acc_fig.savefig('val_acc_' + name + '.png')
+        else: plt.show()
 
 def ML_main(train_folder,valid_folder, mask_folder, mask_folder_val ):
 
@@ -294,8 +297,8 @@ def ML_main(train_folder,valid_folder, mask_folder, mask_folder_val ):
 
     model.save('/localhome/studenter/mikaellv/Project/ML/models/' + ml.model_name)
 
-    # ml.plot_history(history1)
-    # ml.plot_history(history2)
+    ml.plot_history(history1, name='first_set')
+    ml.plot_history(history2, name='second_set')
 
     # max_show = 20
     # imgs, segs = next(val_gen)
