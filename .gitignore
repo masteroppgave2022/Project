@@ -190,3 +190,10 @@ logs
 ML/models/
 nohup.out
 data/temporary.py
+predictions_test
+figures
+test.png 
+testPred.png
+data/datasets
+img_and_subset.png 
+ML/models

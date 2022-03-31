@@ -33,7 +33,7 @@ import albumentations as A
 class ML_utils():
     def __init__(self) -> None:
         self.parser_ml = configparser.ConfigParser()
-        self.parser_ml.read('/localhome/studenter/mikaellv/Project/ML/ml_config.ini')
+        self.parser_ml.read('/localhome/studenter/renatask/Project/ML/ml_config.ini')
 
         self.model_name = self.parser_ml['model']['NAME']
 
@@ -229,6 +229,29 @@ class ML_utils():
             crossentropy_fig.savefig('crossentropy_' + name + '.png')
             val_acc_fig.savefig('val_acc_' + name + '.png')
         else: plt.show()
+    
+def dice_loss(y_true, y_pred):
+    y_true = tf.cast(y_true, tf.float32)
+    y_pred = tf.math.sigmoid(y_pred)
+    numerator = 2 * tf.reduce_sum(y_true * y_pred)
+    denominator = tf.reduce_sum(y_true + y_pred)
+
+    return 1 - numerator / denominator
+
+class CustomLoss(tf.keras.losses.Loss):
+    def __init__(self):
+        super().__init__()
+
+    #def get_config(self):
+    #    return {"dice_loss": self.var.numpy()}
+
+    def call(self, y_true, y_pred):
+        y_true = tf.cast(y_true, tf.float32)
+        y_pred = tf.math.sigmoid(y_pred)
+        numerator = 2 * tf.reduce_sum(y_true * y_pred)
+        denominator = tf.reduce_sum(y_true + y_pred)
+
+        return 1 - numerator / denominator
 
 def ML_main(train_folder,valid_folder, mask_folder, mask_folder_val ):
 
@@ -299,6 +322,101 @@ def ML_main(train_folder,valid_folder, mask_folder, mask_folder_val ):
 
     ml.plot_history(history1, name='first_set')
     ml.plot_history(history2, name='second_set')
+
+    # max_show = 20
+    # imgs, segs = next(val_gen)
+    # pred = model.predict(imgs)
+
+    # predictions = []
+    # segmentations = []
+    # for i in range(len(pred)):
+    #     predictions.append(np.argmax(pred[i], axis=-1))
+    #     segmentations.append(np.argmax(segs[i], axis=-1))
+
+    # for i in range(max_show):
+    #     plotPred(imgs[i], segs[i], predictions[i])
+
+    # for i in range(max_show):
+    #    plotPred(imgs[i], np.argmax(segs[i], axis=-1), np.argmax(pred[i], axis=-1))
+
+def ML_main_dice(train_folder,valid_folder, mask_folder, mask_folder_val ):
+
+    num_training_samples = len(os.listdir(train_folder))#len(os.listdir(train_folder+'/images'))
+    num_valid_samples = len(os.listdir(train_folder))#len(os.listdir(valid_folder+'/images'))
+
+    ml = ML_utils()
+
+    train_gen = ml.DataGenerator(train_folder, mask_folder, train=True)
+    val_gen = ml.DataGenerator(valid_folder, mask_folder_val, train=True)
+
+    imgs, segs = next(train_gen)
+
+    # plotMaskedImage(imgs[5], segs[5])
+
+    model = ml.Unet3()
+    model.summary()
+
+    model.compile(
+        optimizer=Adam(learning_rate=1e-5),
+        loss=CustomLoss(),
+        metrics=[dice_loss, 'categorical_crossentropy', 'acc'],
+    )
+
+    log_dir = "logs/fit/" + datetime.datetime.now().strftime("%Y%m%d-%H%M%S")
+    tensorboard_callback = tf.keras.callbacks.TensorBoard(log_dir=log_dir, histogram_freq=1)
+    
+    checkpoint = ModelCheckpoint('model.hdf5', monitor='val_acc', verbose=1, save_best_only=False, mode='max')
+
+    TRAIN_STEPS = num_training_samples//ml.BATCH_SIZE+1
+    VAL_STEPS = num_valid_samples//ml.BATCH_SIZE+1
+
+    history1 = model.fit(
+        train_gen,
+        validation_data=val_gen,
+        epochs=ml.EPOCHS1,
+        steps_per_epoch=TRAIN_STEPS,
+        callbacks=[tensorboard_callback, checkpoint], #checkpoint,
+        #workers=0,
+        verbose=1,
+        shuffle=True,
+        validation_steps=VAL_STEPS,
+    )
+
+    sm.utils.set_trainable(model, recompile=False)
+
+    model.summary()
+
+    model.compile(
+        optimizer=Adam(learning_rate=0.000001),
+        loss=CustomLoss(),
+        metrics=[dice_loss,'categorical_crossentropy', 'acc'],
+    )
+
+    history2 = model.fit(
+        train_gen,
+        validation_data=val_gen,
+        epochs=ml.EPOCHS2,
+        steps_per_epoch=TRAIN_STEPS,
+        callbacks=[checkpoint, tensorboard_callback],
+        #workers=0,
+        verbose=1,
+        shuffle=True,
+        validation_steps=VAL_STEPS,
+    )
+
+    model.save('/localhome/studenter/renatask/Project/ML/models/' + ml.model_name)
+
+    #ml.plot_history(history1, name='first_set')
+    #ml.plot_history(history2, name='second_set')
+
+    name1 = ml.model_name +'_1.csv'
+    name2 = ml.model_name +'_2.csv'
+
+    history_frame1 = pd.DataFrame(history1.history)
+    history_frame1.to_csv(f'/localhome/studenter/renatask/Project/ML/saved_dataframes/{name1}.csv')
+
+    history_frame2 = pd.DataFrame(history2.history)
+    history_frame2.to_csv(f'/localhome/studenter/renatask/Project/ML/saved_dataframes/{name2}.csv')
 
     # max_show = 20
     # imgs, segs = next(val_gen)
