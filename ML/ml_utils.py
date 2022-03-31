@@ -1,33 +1,20 @@
 import matplotlib.pyplot as plt
 import numpy as np
-from sklearn.utils import shuffle
 import tensorflow as tf
 import pandas as pd
-# import tensorflow_datasets as tfds
-import keras as keras
-import keras.layers as layers
 import segmentation_models as sm
 sm.set_framework('tf.keras')
 sm.framework()
-# import tensorflow_hub as hub
 import rasterio
 import datetime
 import os
 import seaborn as sns
-#import cv2
 from keras.callbacks import ModelCheckpoint
 from tensorflow.keras.optimizers import Adam
 import configparser
 import math
-from data.plot_data import plotPred
-from data.plot_data import plotMaskedImage
-
-from sklearn.metrics import precision_score
-from sklearn.metrics import recall_score
-from sklearn.metrics import confusion_matrix
-from sklearn.metrics import f1_score
+#from ML.deeplabV3plus.model import Deeplabv3
 from skimage import exposure
-
 import albumentations as A
 
 class ML_utils():
@@ -36,42 +23,14 @@ class ML_utils():
         self.parser_ml.read('/localhome/studenter/renatask/Project/ML/ml_config.ini')
 
         self.model_name = self.parser_ml['model']['NAME']
-
         self.EPOCHS1=int(self.parser_ml['train']['EPOCHS1'])
         self.EPOCHS2=int(self.parser_ml['train']['EPOCHS2'])
         self.BATCH_SIZE=int(self.parser_ml['train']['BATCH_SIZE'])
         self.HEIGHT= int(self.parser_ml['train']['HEIGHT'])
         self.WIDTH= int(self.parser_ml['train']['WIDTH'])
-
-        self.CLASSES = {
-            1: 'Water',
-            0: 'not_water',
-        }
-
-        # self.CLASSES = {
-        #     1: 'Water',
-        #     2: 'Trees',
-        #     3: 'Grass',
-        #     4: 'Flooded Vegetation',
-        #     5: 'Crops',
-        #     6: 'Scrub/Shrub',
-        #     7: 'Built Area',
-        #     8: 'Bare Ground',
-        #     9: 'Snow/Ice'
-        # }
-
+        self.CLASSES = {1: 'water', 0: 'not_water'}
+        self.class_weights = {'not_water': 1.0, 'water': 5.0}
         self.N_CLASSES=len(self.CLASSES)
-
-    # def LoadImage(self, name, path):
-    #     """ Return: (h,w,n)-np.arrays """
-    #     # Images to np-arrays
-    #     image_arr = rasterio.open(os.path.join(path+'/images/',name)).read()
-    #     mask_arr = rasterio.open(os.path.join(path+'/masks/',name)).read()
-    #     # Convert dimensions to standard (n,height,width) --> (height,width,n)
-    #     image = np.rollaxis(image_arr,0,3)
-    #     mask = np.rollaxis(mask_arr,0,3)
-
-    #     return image, mask
 
     def LoadImage(self, file, image_path, mask_path):
         """ Return: (h,w,n)-np.arrays """
@@ -105,7 +64,7 @@ class ML_utils():
     def image_augmentation(self, image:np.array, mask:np.array):
         transform = A.Compose([
             A.RandomRotate90(p=0.5),
-            A.ChannelShuffle(p=0.2),
+            A.ChannelShuffle(p=0.4),
             A.HorizontalFlip(p=0.5),
             A.VerticalFlip(p=0.5)
         ])
@@ -113,11 +72,10 @@ class ML_utils():
         return transformed['image'], transformed['mask']
 
     def getSegmentationArr(self, image, classes):
-        width=self.WIDTH
-        height=self.HEIGHT
+        height = image.shape[0]
+        width = image.shape[1]
         seg_labels = np.zeros((height, width, classes))
         img = image[:, :, 0]
-
         for c in range(classes):
             seg_labels[:, :, c] = (img == c ).astype(int)
         return seg_labels
@@ -126,109 +84,74 @@ class ML_utils():
         n_classes=self.N_CLASSES
         seg_img = np.zeros( (seg.shape[0],seg.shape[1],2) ).astype('float')
         colors = sns.color_palette("hls", n_classes)
-
         for c in range(n_classes):
             segc = (seg == c)
             seg_img[:,:,0] += (segc*( colors[c][0] ))
             seg_img[:,:,1] += (segc*( colors[c][1] ))
-            #seg_img[:,:,2] += (segc*( colors[c][2] ))
-
         return(seg_img)
 
     def DataGenerator(self, path, mask_folder, train=False):
         batch_size=self.BATCH_SIZE
         classes=self.N_CLASSES
-        files = [f for f in os.listdir(path) if not f.startswith('.')] #os.listdir(path+'/images')
+        files = [f for f in os.listdir(path) if not f.startswith('.')]
         while True:
             for i in range(0, len(files), batch_size):
                 batch_files = files[i : i+batch_size]
                 imgs=[]
                 segs=[]
+                sample_weights=[]
                 for file in batch_files:
-                    if not file.startswith('.'):
-                        image, mask = self.LoadImage(file, path, mask_folder)
-                        if train: image, mask = self.image_augmentation(image,mask)
-                        mask_binned = self.bin_image(mask)
-                        labels = self.getSegmentationArr(mask_binned, classes)
-                        imgs.append(image[:,:,0:3])  #uses the first 3 bands 
-
-                        # im = np.array([image[:,:,0], image[:,:,1], image[:,:,0]/image[:,:,1]])
-                        # ima = np.rollaxis(im,0,3)
-                        # #print(ima)
-
-                        # for i in ima:
-                        #     for e in i:
-                        #         for a in range(len(e)):
-                        #             if math.isnan(e[a]): e[a]=-1 # changed from 0 to -1
-
-                        # imgs.append(ima)  #uses the first 2 bands and the 0/1 as a third band
-
-                        # segs.append(mask)
-                        # imgs.append(image)
-                        segs.append(labels)
-                        # plotMaskedImage(image, mask)
-
-                        # fig, axs = plt.subplots(1, 4, figsize=(25,25))
-                        # plt.tight_layout()
-                        # axs[0].imshow(10*np.log10(image[:, :, 0]), cmap='ocean') 
-                        # axs[0].set_title('0')
-                        # axs[2].imshow(10*np.log10(image[:, :, 2]), cmap='ocean') 
-                        # axs[2].set_title('1')
-                        # axs[1].imshow(10*np.log10(image[:, :, 1]), cmap='ocean') 
-                        # axs[1].set_title('2')
-                        # axs[3].imshow(10*np.log10(image[:, :, 3]), cmap='ocean') 
-                        # axs[3].set_title('3')
-                        # plt.show()
-
-                        # plt.imshow(image[:, :, 0])
-                        # plt.imshow(image[:, :, 1])
-                        # plt.imshow(image[:, :, 2])
-                        # plt.imshow(image[:, :, 3])
-                        #plt.imshow(labels[:, :, 0])
-                        #plt.imshow(labels[:, :, 1])
-                        # plt.show()
-                yield np.array(imgs), np.array(segs)
+                    if file.startswith('.'): continue
+                    image, mask = self.LoadImage(file, path, mask_folder)
+                    if train: image, mask = self.image_augmentation(image,mask)
+                    mask_binned = self.bin_image(mask)
+                    labels = self.getSegmentationArr(mask_binned, classes)
+                    imgs.append(image[:,:,0:3])
+                    segs.append(labels)
+                    sample_weights.append(self.add_sample_weights(mask))
+                if train: yield np.array(imgs), np.array(segs)
+                else: yield imgs, segs
 
     def Unet(self):
-        # N = 3
-        # inp = layers.Input(shape=(None, None, N))
-        # l1 = layers.Conv2D(3, (1, 1))(inp)
-        base_model = sm.Unet('resnet50', classes=self.N_CLASSES, activation='softmax', encoder_weights='imagenet', input_shape=[256, 256, 3], encoder_freeze=True)
-        # out = base_model(inp)
-        # model = keras.models.Model(inp, out, name=base_model.name)
-        #model = sm.Unet('resnet50', classes=self.N_CLASSES, activation='softmax', encoder_weights='imagenet', input_shape=[self.HEIGHT, self.WIDTH, 4], encoder_freeze=True)
-        #tf.keras.utils.plot_model(model, show_shapes=True, to_file=self.model_name+'.png')
-        return base_model
-
-    def Unet2(self):
-        N = 3
-        inp = layers.Input(shape=(None, None, N))
-        l1 = layers.Conv2D(3, (1, 1))(inp)
-        base_model = sm.Unet('resnet50', classes=self.N_CLASSES, activation='softmax')
-        out = base_model(l1)
-        model = keras.models.Model(inp, out, name=base_model.name)
-        #model = sm.Unet('resnet50', classes=self.N_CLASSES, activation='softmax', encoder_weights='imagenet', input_shape=[self.HEIGHT, self.WIDTH, 4], encoder_freeze=True)
-        #tf.keras.utils.plot_model(model, show_shapes=True, to_file=self.model_name+'.png')
+        model = sm.Unet('resnet50', classes=self.N_CLASSES, activation='softmax', encoder_weights='imagenet', input_shape=[None, None, 3], encoder_freeze=True)
         return model
 
-    def Unet3(self):
-        N=3
-        model = sm.Unet('resnet50', classes=self.N_CLASSES, activation='softmax', encoder_weights='imagenet', input_shape=[None, None, 3], encoder_freeze=True)
+    def DeepLabV3plus(self):
+        model = Deeplabv3(
+            input_shape=(None, None, 3),
+            classes=self.N_CLASSES,
+            backbone='xception',
+            weights='cityscapes',
+            activation='softmax',
+            )
         return model
 
     def plot_history(self, history, name=None):
         """
         Must be adapted to the content of the history dataframe
         """
-        history_frame1 = pd.DataFrame(history.history)
-        val_loss_fig = history_frame1.loc[:, ['loss', 'val_loss']].plot().getfigure()
-        crossentropy_fig = history_frame1.loc[:, ['categorical_crossentropy', 'val_categorical_crossentropy']].plot().getfigure()
-        val_acc_fig = history_frame1.loc[:, ['acc', 'val_acc']].plot().getfigure()
-        if name:
-            val_loss_fig.savefig('val_loss_' + name + '.png')
-            crossentropy_fig.savefig('crossentropy_' + name + '.png')
-            val_acc_fig.savefig('val_acc_' + name + '.png')
-        else: plt.show()
+        history_frame = pd.DataFrame(history.history)
+        history_frame.to_csv(f'/localhome/studenter/renatsak/Project/ML/saved_dataframes/{name}.csv')
+        try:
+            plt.switch_backend("Agg")
+            fig, axs = plt.subplots(1,3,figsize=(25,25))
+            history_frame.loc[:, ['loss', 'val_loss']].plot(ax=axs[0])
+            history_frame.loc[:, ['categorical_crossentropy', 'val_categorical_crossentropy']].plot(ax=axs[1])
+            history_frame.loc[:, ['acc', 'val_acc']].plot().getfigure(ax=axs[2])
+            if name:
+                plt.savefig('ML/saved_dataframes/'+name+'.png')
+            else: plt.show()
+        except Exception as e:
+            print(f"[ERROR]: {e}")
+        # history_frame1 = pd.DataFrame(history.history)
+        # val_loss_fig = history_frame1.loc[:, ['loss', 'val_loss']].plot().getfigure()
+        # crossentropy_fig = history_frame1.loc[:, ['categorical_crossentropy', 'val_categorical_crossentropy']].plot().getfigure()
+        # val_acc_fig = history_frame1.loc[:, ['acc', 'val_acc']].plot().getfigure()
+        # if name:
+        #     val_loss_fig.savefig('val_loss_' + name + '.png')
+        #     crossentropy_fig.savefig('crossentropy_' + name + '.png')
+        #     val_acc_fig.savefig('val_acc_' + name + '.png')
+        # else: plt.show()
     
 def dice_loss(y_true, y_pred):
     y_true = tf.cast(y_true, tf.float32)
@@ -252,6 +175,13 @@ class CustomLoss(tf.keras.losses.Loss):
         denominator = tf.reduce_sum(y_true + y_pred)
 
         return 1 - numerator / denominator
+        
+
+    def add_sample_weights(self, label):
+        class_weights = tf.constant([self.class_weights['not_water'],self.class_weights['water']])
+        class_weights = class_weights/tf.reduce_sum(class_weights)
+        sample_weights = tf.gather(class_weights, indices=tf.cast(label, tf.int32))
+        return sample_weights
 
 def ML_main(train_folder,valid_folder, mask_folder, mask_folder_val ):
 
@@ -263,11 +193,7 @@ def ML_main(train_folder,valid_folder, mask_folder, mask_folder_val ):
     train_gen = ml.DataGenerator(train_folder, mask_folder, train=True)
     val_gen = ml.DataGenerator(valid_folder, mask_folder_val, train=True)
 
-    imgs, segs = next(train_gen)
-
-    # plotMaskedImage(imgs[5], segs[5])
-
-    model = ml.Unet()
+    model = ml.DeepLabV3plus()
     model.summary()
 
     model.compile(
@@ -279,7 +205,7 @@ def ML_main(train_folder,valid_folder, mask_folder, mask_folder_val ):
     log_dir = "logs/fit/" + datetime.datetime.now().strftime("%Y%m%d-%H%M%S")
     tensorboard_callback = tf.keras.callbacks.TensorBoard(log_dir=log_dir, histogram_freq=1)
     
-    checkpoint = ModelCheckpoint('model.hdf5', monitor='val_acc', verbose=1, save_best_only=False, mode='max')
+    checkpoint = ModelCheckpoint('ML/checkpoints/model.hdf5', monitor='val_acc', verbose=1, save_best_only=False, mode='max')
 
     TRAIN_STEPS = num_training_samples//ml.BATCH_SIZE+1
     VAL_STEPS = num_valid_samples//ml.BATCH_SIZE+1
@@ -293,35 +219,35 @@ def ML_main(train_folder,valid_folder, mask_folder, mask_folder_val ):
         #workers=0,
         verbose=1,
         shuffle=True,
-        validation_steps=VAL_STEPS,
+        validation_steps=VAL_STEPS
     )
 
-    sm.utils.set_trainable(model, recompile=False)
+    # sm.utils.set_trainable(model, recompile=False)
 
-    model.summary()
+    # model.summary()
 
-    model.compile(
-        optimizer=Adam(learning_rate=0.000001),
-        loss='categorical_crossentropy',
-        metrics=['categorical_crossentropy', 'acc'],
-    )
+    # model.compile(
+    #     optimizer=Adam(learning_rate=0.000001),
+    #     loss='categorical_crossentropy',
+    #     metrics=['categorical_crossentropy', 'acc'],
+    # )
 
-    history2 = model.fit(
-        train_gen,
-        validation_data=val_gen,
-        epochs=ml.EPOCHS2,
-        steps_per_epoch=TRAIN_STEPS,
-        callbacks=[checkpoint, tensorboard_callback],
-        #workers=0,
-        verbose=1,
-        shuffle=True,
-        validation_steps=VAL_STEPS,
-    )
+    # history2 = model.fit(
+    #     train_gen,
+    #     validation_data=val_gen,
+    #     epochs=ml.EPOCHS2,
+    #     steps_per_epoch=TRAIN_STEPS,
+    #     callbacks=[checkpoint, tensorboard_callback],
+    #     #workers=0,
+    #     verbose=1,
+    #     shuffle=True,
+    #     validation_steps=VAL_STEPS
+    # )
 
     model.save('/localhome/studenter/mikaellv/Project/ML/models/' + ml.model_name)
 
-    ml.plot_history(history1, name='first_set')
-    ml.plot_history(history2, name='second_set')
+    ml.plot_history(history1, name=ml.model_name+'_1.csv')
+    # ml.plot_history(history2, name=ml.model_name+'_2.csv')
 
     # max_show = 20
     # imgs, segs = next(val_gen)

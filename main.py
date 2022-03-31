@@ -27,20 +27,6 @@ import numpy as np
 
 import seaborn as sns
 
-def give_color_to_seg_img(seg):
-    n_classes=2
-    seg_img = np.zeros( (seg.shape[0],seg.shape[1],3) ).astype('float')
-    colors = sns.color_palette("hls", n_classes)
-
-    for c in range(n_classes):
-        segc = (seg == c)
-        seg_img[:,:,0] += (segc*( colors[c][0] ))
-        seg_img[:,:,1] += (segc*( colors[c][1] ))
-        #seg_img[:,:,2] += (segc*( colors[c][2] ))
-
-    return(seg_img)
-
-
 """ Log progress """
 logging.basicConfig(filename='main_log.log', encoding='utf-8', level=logging.INFO, format='%(asctime)s %(levelname)s: %(message)s',  datefmt='%m/%d/%Y %H:%M:%S')
 
@@ -171,7 +157,7 @@ if parser_main.getboolean('main','build_data'):
     logging.info("[INFO] Building dataset ...")
     dataset_name = parser_main['build_data']['dataset_name']
     train_val_split = float(parser_main['build_data']['train_val_split'])
-    test_regions = json.loads(parser_main['build_data']['test_regions'])
+    test_regions = parser_main['build_data']['test_regions'].split(',')
     bd.build_dataset(destination_path = root + 'datasets/',\
         dataset_name = dataset_name,
         val_split = train_val_split,
@@ -186,6 +172,8 @@ if parser_main.getboolean('main','ML'):
     train_masks = 'data/datasets/' + dataset + '/train/masks'
     val_images = 'data/datasets/' + dataset + '/val/images'
     val_masks = 'data/datasets/' + dataset + '/val/masks'
+    test_images = 'data/datasets/' + dataset + '/test/images'
+    test_masks = 'data/datasets/' + dataset + '/test/masks'
 
     if parser_main.getboolean('ML','train'):
         num_train_samples = len([img for img in os.listdir(train_images) if not img.startswith('.')]) # Exclude hidden files starting with '.'
@@ -197,7 +185,7 @@ if parser_main.getboolean('main','ML'):
     if parser_main.getboolean('ML','val'):
         ml = ML_utils()
 
-        val_gen = ml.DataGenerator(val_images, val_masks)
+        val_gen = ml.DataGenerator(test_images, test_masks, train=False)
 
         model = keras.models.load_model("/localhome/studenter/mikaellv/Project/ML/models/test_model_7_dice", compile=False)
         model.summary()

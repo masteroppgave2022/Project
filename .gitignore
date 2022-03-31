@@ -197,3 +197,5 @@ testPred.png
 data/datasets
 img_and_subset.png 
 ML/models
+ML/predicted_images
+predictions_test

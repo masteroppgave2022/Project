@@ -50,7 +50,7 @@ def get_tiles(ds, width=256, height=256):
         transform = windows.transform(window, ds.transform)
         yield window, transform
 
-def tile_write(image_path,output_path,size=(256,256)):
+def tile_write(image_path,output_path,size=(256,256),test_data=False,test_name:str=None):
     """
     Tile large satellite image and save to specified output location.
     ----- Parameters: -----
@@ -58,15 +58,19 @@ def tile_write(image_path,output_path,size=(256,256)):
     output_path (str) :: path to write to
     size (tuple) :: (height,width) of desired tiles
     """
-    output_filename = 'tile_{}-{}.tif'
     image = rasterio.open(image_path)
     meta = image.meta.copy()
-    
-    for window, transform in get_tiles(image,size[0],size[1]):
+    for window, transform in get_tiles(image,size[1],size[0]):
         meta['transform'] = transform
         if window.width == size[1] and window.height == size[0]:
             meta['width'],meta['height'] = window.width,window.height
-            outpath = os.path.join(output_path,output_filename.format(int(window.col_off), int(window.row_off)))
+            if test_data:
+                output_filename = test_name + '.tif'
+                outpath = os.path.join(output_path,output_filename)
+                print(outpath)
+            else:
+                output_filename = 'tile_{}-{}.tif'
+                outpath = os.path.join(output_path,output_filename.format(int(window.col_off), int(window.row_off)))
             with rasterio.open(outpath, 'w', **meta) as outds:
                 outds.write(image.read(window=window))
 
@@ -92,6 +96,15 @@ def get_paths_to_data(path_to_images:str, path_to_masks:str, test_regions:list):
         for tile in os.listdir(mask_tile_root+region):
             train_val_masks.append(mask_tile_root+region+'/'+tile)
     return train_val_images, train_val_masks, test_images, test_masks
+
+def get_tensor_compatible_shape(path_to_image:str):
+    image = rasterio.open(path_to_image).read()
+    (current_height, current_width) = image.shape[1:]
+    height = int(current_height - (current_height % 32))
+    width = int(current_width - (current_width % 32))
+    minimum_dim = np.min((height, width))
+    return (minimum_dim,minimum_dim)
+
 
 def build_dataset(
     destination_path:str,
@@ -152,10 +165,13 @@ def build_dataset(
         count += 1
     count = 1
     for img in test_imgs:
-        shutil.copyfile(img,test_imgs_path+str(count)+extension)
+        size = get_tensor_compatible_shape(img)
+        tile_write(img,test_imgs_path,size=size,test_data=True,test_name=str(count))
         count += 1
+    count = 1
     for mask in test_masks:
-        shutil.copyfile(mask,test_masks_path+str(count)+extension)
+        size = get_tensor_compatible_shape(mask)
+        tile_write(mask,test_masks_path,size=size,test_data=True,test_name=str(count))
         count += 1
 
 
