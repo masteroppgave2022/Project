@@ -12,7 +12,7 @@ from rasterio.plot import show
 from rasterio.plot import plotting_extent
 import matplotlib
 matplotlib.use("Qt5Agg")
-from matplotlib import pyplot as plt
+import matplotlib.pyplot as plt
 
 # import earthpy as et
 # import earthpy.spatial as es
@@ -95,7 +95,8 @@ def plotPred(image, mask, pred):
     #print(image[1])
     fig, axs = plt.subplots(1, 3, figsize=(25,25))
     plt.tight_layout()
-    axs[0].imshow(10*np.log10(image[:, :, 0]), cmap='ocean') #image[:, :, 1]
+    #axs[0].imshow(10*np.log10(image[:, :, 0]), cmap='ocean') #image[:, :, 1]
+    axs[0].imshow(image[:, :, 0], cmap='PuBuGn_r') #image[:, :, 1]
     #axs[0].hist(image.ravel(), bins=256, range=(0.0, 1.0), fc='k', ec='k')
     #rasterio.plot.show(image, ax=axs[0], adjust='linear')
     axs[0].set_title('Original Image')
