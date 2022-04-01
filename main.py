@@ -37,7 +37,7 @@ main_config.ini is the main setup file.
 To only run parts of the program, edit main_config.ini.
 """
 parser_main = configparser.ConfigParser()
-parser_main.read('/localhome/studenter/renatask/Project/main_config.ini')
+parser_main.read('/localhome/studenter/mikaellv/Project/main_config.ini')
 root = parser_main['main']['root']
 download_path = root + 'unprocessed_downloads/'
 shapefile_path = parser_main['main']['shapefile_path']
