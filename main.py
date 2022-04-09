@@ -185,14 +185,14 @@ if parser_main.getboolean('main','ML'):
     if parser_main.getboolean('ML','val'):
         ml = ML_utils()
 
-        val_gen = ml.DataGenerator(test_images, test_masks, train=False)
+        val_gen = ml.DataGenerator(val_images, val_masks, train=False)
 
-        model = keras.models.load_model("/localhome/studenter/mikaellv/Project/ML/models/test_model_7_dice", compile=False)
+        model = keras.models.load_model("/localhome/studenter/renatask/Project/ML/models/test_model_8_dice", compile=False)
         model.summary()
 
         ### test img
-        img_path = '/localhome/studenter/renatask/Project/data/datasets/data_medium/val/images'
-        mask_path = '/localhome/studenter/renatask/Project/data/datasets/data_medium/val/masks'
+        img_path = '/localhome/studenter/renatask/Project/data/datasets/data_mini/val/images'
+        mask_path = '/localhome/studenter/renatask/Project/data/datasets/data_mini/val/masks'
 
         classes = {
             1: 'Water',
@@ -210,41 +210,43 @@ if parser_main.getboolean('main','ML'):
             return seg_labels
 
 
-        batch_size=32
-        classes=len(classes)
-        files = [f for f in os.listdir(img_path) if not f.startswith('.')] #os.listdir(path+'/images')
-        for i in range(0, len(files), batch_size):
-            batch_files = files[i : i+batch_size]
-            imgs=[]
-            segs=[]
-            for file in batch_files:
-                if not file.startswith('.'):
-                    image, mask = ml.LoadImage(file=file,image_path=img_path, mask_path=mask_path)
-                    mask_binned = ml.bin_image(mask)
-                    label = getSegmentationArr(mask_binned, classes)
+        # batch_size=32
+        # classes=len(classes)
+        # files = [f for f in os.listdir(img_path) if not f.startswith('.')] #os.listdir(path+'/images')
+        # for i in range(0, len(files), batch_size):
+        #     batch_files = files[i : i+batch_size]
+        #     imgs=[]
+        #     segs=[]
+        #     for file in batch_files:
+        #         if not file.startswith('.'):
+        #             image, mask = ml.LoadImage(file=file,image_path=img_path, mask_path=mask_path)
+        #             mask_binned = ml.bin_image(mask)
+        #             label = getSegmentationArr(mask_binned, classes)
 
-                    H_32 = int(image.shape[0]/32)*32
-                    W_32 = int(image.shape[1]/32)*32
+        #             H_32 = int(image.shape[0]/32)*32
+        #             W_32 = int(image.shape[1]/32)*32
 
-                    image = image[0:H_32,0: W_32,:]
-                    label = label[0:H_32, 0:W_32,:]
+        #             image = image[0:H_32,0: W_32,:]
+        #             label = label[0:H_32, 0:W_32,:]
 
-                    imgs.append(image[:,:,0:3])  #uses the first 3 bands 
-                    segs.append(label)
+        #             imgs.append(image[:,:,0:3])  #uses the first 3 bands 
+        #             segs.append(label)
         
-        imgs = np.array(imgs, dtype=np.float32)
-        segs = np.array(segs, dtype=np.float32)
-        preds = []
+        # imgs = np.array(imgs, dtype=np.float32)
+        # segs = np.array(segs, dtype=np.float32)
+        # preds = []
 
-        #for i in range(len(imgs)):
-        #    pred = model.predict(imgs[i])
-        #    preds.append(pred)
-            #plotPred(imgs[i], segs[i], pred[1])
+        # print('ready to predict')
+
+        # for i in range(len(imgs)):
+        #     pred = model.predict(imgs[i])
+        #     preds.append(pred)
+        #     plotPred(imgs[i], segs[i], pred[1])
 
 
         print('ready to predict')
 
-        max_show = 2
+        max_show = 4
         #imgs, segs =  ml.DataGenerator('/localhome/studenter/renatask/Project/data/tiled_images/gaula_melhus_S1A_IW_GRDH_1SDV_20200913T165517', '/localhome/studenter/renatask/Project/data/tiled_masks/gaula_melhus') #val_gen
         #pred = model.predict(imgs)
         imgs, segs = next(val_gen)

@@ -50,10 +50,10 @@ class ML_utils():
             rescaled_image[:,:,b] = rescaled_band
         image = rescaled_image
         # Check for NaN values
-        for i in image:
-            for e in i:
-                for a in range(len(e)):
-                    if math.isnan(e[a]): e[a]=255
+        # for i in image:
+        #     for e in i:
+        #         for a in range(len(e)):
+        #             if math.isnan(e[a]): e[a]=255
         return image, mask
 
     def bin_image(self, mask):
@@ -108,9 +108,15 @@ class ML_utils():
                     labels = self.getSegmentationArr(mask_binned, classes)
                     imgs.append(image[:,:,0:3])
                     segs.append(labels)
-                    sample_weights.append(self.add_sample_weights(mask))
+                    #sample_weights.append(self.add_sample_weights(mask))
                 if train: yield np.array(imgs), np.array(segs)
                 else: yield imgs, segs
+
+    def add_sample_weights(self, label):
+        class_weights = tf.constant([self.class_weights['not_water'],self.class_weights['water']])
+        class_weights = class_weights/tf.reduce_sum(class_weights)
+        sample_weights = tf.gather(class_weights, indices=tf.cast(label, tf.int32))
+        return sample_weights
 
     def Unet(self):
         model = sm.Unet('resnet50', classes=self.N_CLASSES, activation='softmax', encoder_weights='imagenet', input_shape=[None, None, 3], encoder_freeze=True)
@@ -131,7 +137,7 @@ class ML_utils():
         Must be adapted to the content of the history dataframe
         """
         history_frame = pd.DataFrame(history.history)
-        history_frame.to_csv(f'/localhome/studenter/renatsak/Project/ML/saved_dataframes/{name}.csv')
+        history_frame.to_csv(f'/localhome/studenter/renatask/Project/ML/saved_dataframes/{name}.csv')
         try:
             plt.switch_backend("Agg")
             fig, axs = plt.subplots(1,3,figsize=(25,25))
@@ -156,8 +162,8 @@ class ML_utils():
 def dice_loss(y_true, y_pred):
     y_true = tf.cast(y_true, tf.float32)
     y_pred = tf.math.sigmoid(y_pred)
-    numerator = 2 * tf.reduce_sum(y_true * y_pred)
-    denominator = tf.reduce_sum(y_true + y_pred)
+    numerator = 2 * tf.reduce_sum(y_true * y_pred)+1
+    denominator = tf.reduce_sum(y_true + y_pred)+1
 
     return 1 - numerator / denominator
 
@@ -171,17 +177,13 @@ class CustomLoss(tf.keras.losses.Loss):
     def call(self, y_true, y_pred):
         y_true = tf.cast(y_true, tf.float32)
         y_pred = tf.math.sigmoid(y_pred)
-        numerator = 2 * tf.reduce_sum(y_true * y_pred)
-        denominator = tf.reduce_sum(y_true + y_pred)
+        numerator = 2 * tf.reduce_sum(y_true * y_pred)+1
+        denominator = tf.reduce_sum(y_true + y_pred)+1
 
         return 1 - numerator / denominator
         
 
-    def add_sample_weights(self, label):
-        class_weights = tf.constant([self.class_weights['not_water'],self.class_weights['water']])
-        class_weights = class_weights/tf.reduce_sum(class_weights)
-        sample_weights = tf.gather(class_weights, indices=tf.cast(label, tf.int32))
-        return sample_weights
+    
 
 def ML_main(train_folder,valid_folder, mask_folder, mask_folder_val ):
 
@@ -279,7 +281,7 @@ def ML_main_dice(train_folder,valid_folder, mask_folder, mask_folder_val ):
 
     # plotMaskedImage(imgs[5], segs[5])
 
-    model = ml.Unet3()
+    model = ml.Unet()
     model.summary()
 
     model.compile(
@@ -289,7 +291,7 @@ def ML_main_dice(train_folder,valid_folder, mask_folder, mask_folder_val ):
     )
 
     log_dir = "logs/fit/" + datetime.datetime.now().strftime("%Y%m%d-%H%M%S")
-    tensorboard_callback = tf.keras.callbacks.TensorBoard(log_dir=log_dir, histogram_freq=1)
+    tensorboard_callback = tf.keras.callbacks.TensorBoard(log_dir=log_dir, histogram_freq=1, profile_batch=1)
     
     checkpoint = ModelCheckpoint('model.hdf5', monitor='val_acc', verbose=1, save_best_only=False, mode='max')
 
@@ -302,7 +304,7 @@ def ML_main_dice(train_folder,valid_folder, mask_folder, mask_folder_val ):
         epochs=ml.EPOCHS1,
         steps_per_epoch=TRAIN_STEPS,
         callbacks=[tensorboard_callback, checkpoint], #checkpoint,
-        #workers=0,
+        #workers=24,
         verbose=1,
         shuffle=True,
         validation_steps=VAL_STEPS,

@@ -1,7 +1,7 @@
 import pandas as pd
 import matplotlib.pyplot as plt
 
-file_path = '/localhome/studenter/renatask/Project/ML/saved_dataframes/test_model_7_dice_2.csv.csv'
+file_path = '/localhome/studenter/renatask/Project/ML/saved_dataframes/test_model_8_dice_2.csv.csv'
 
 file = pd.read_csv(file_path)
 
