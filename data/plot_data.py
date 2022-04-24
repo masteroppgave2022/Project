@@ -11,7 +11,7 @@ import rioxarray as rxr
 from rasterio.plot import show
 from rasterio.plot import plotting_extent
 import matplotlib
-matplotlib.use("Qt5Agg")
+#matplotlib.use("Qt5Agg")
 import matplotlib.pyplot as plt
 
 # import earthpy as et

@@ -199,3 +199,5 @@ img_and_subset.png
 ML/models
 ML/predicted_images
 predictions_test
+ML/checkpoints/
+model_1.hdf5

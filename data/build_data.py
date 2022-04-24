@@ -173,7 +173,3 @@ def build_dataset(
         size = get_tensor_compatible_shape(mask)
         tile_write(mask,test_masks_path,size=size,test_data=True,test_name=str(count))
         count += 1
-
-
-
-

@@ -11,25 +11,27 @@ import os
 import seaborn as sns
 from keras.callbacks import ModelCheckpoint
 from tensorflow.keras.optimizers import Adam
+from tensorflow.python.keras.optimizer_v2 import adam
+from tensorflow.python.keras.optimizer_v2.gradient_descent import SGD
 import configparser
-import math
-#from ML.deeplabV3plus.model import Deeplabv3
+import ML.DeepLabV3Plus.deeplabv3plus as dl
 from skimage import exposure
 import albumentations as A
 
 class ML_utils():
     def __init__(self) -> None:
         self.parser_ml = configparser.ConfigParser()
-        self.parser_ml.read('/localhome/studenter/renatask/Project/ML/ml_config.ini')
+        self.parser_ml.read('/localhome/studenter/mikaellv/Project/ML/ml_config.ini')
 
-        self.model_name = self.parser_ml['model']['NAME']
+        self.model_name_1 = self.parser_ml['model']['NAME1']
+        self.model_name_2 = self.parser_ml['model']['NAME2']
         self.EPOCHS1=int(self.parser_ml['train']['EPOCHS1'])
         self.EPOCHS2=int(self.parser_ml['train']['EPOCHS2'])
         self.BATCH_SIZE=int(self.parser_ml['train']['BATCH_SIZE'])
         self.HEIGHT= int(self.parser_ml['train']['HEIGHT'])
         self.WIDTH= int(self.parser_ml['train']['WIDTH'])
         self.CLASSES = {1: 'water', 0: 'not_water'}
-        self.class_weights = {'not_water': 1.0, 'water': 5.0}
+        self.class_weights = {'not_water': 1.0, 'water': 1.0}
         self.N_CLASSES=len(self.CLASSES)
 
     def LoadImage(self, file, image_path, mask_path):
@@ -49,11 +51,7 @@ class ML_utils():
             rescaled_band = exposure.rescale_intensity(image[:,:,b],in_range=(p2,p98),out_range=(0,1))
             rescaled_image[:,:,b] = rescaled_band
         image = rescaled_image
-        # Check for NaN values
-        # for i in image:
-        #     for e in i:
-        #         for a in range(len(e)):
-        #             if math.isnan(e[a]): e[a]=255
+        
         return image, mask
 
     def bin_image(self, mask):
@@ -123,7 +121,7 @@ class ML_utils():
         return model
 
     def DeepLabV3plus(self):
-        model = Deeplabv3(
+        model = dl.DeepLabv3Plus(
             input_shape=(None, None, 3),
             classes=self.N_CLASSES,
             backbone='xception',
@@ -157,15 +155,13 @@ class ML_utils():
         #     val_loss_fig.savefig('val_loss_' + name + '.png')
         #     crossentropy_fig.savefig('crossentropy_' + name + '.png')
         #     val_acc_fig.savefig('val_acc_' + name + '.png')
-        # else: plt.show()
-    
-def dice_loss(y_true, y_pred):
-    y_true = tf.cast(y_true, tf.float32)
-    y_pred = tf.math.sigmoid(y_pred)
-    numerator = 2 * tf.reduce_sum(y_true * y_pred)+1
-    denominator = tf.reduce_sum(y_true + y_pred)+1
-
-    return 1 - numerator / denominator
+        # else: plt.show()@
+        
+    def add_sample_weights(self, label):
+        class_weights = tf.constant([self.class_weights['not_water'],self.class_weights['water']])
+        class_weights = class_weights/tf.reduce_sum(class_weights)
+        sample_weights = tf.gather(class_weights, indices=tf.cast(label, tf.int32))
+        return sample_weights
 
 class CustomLoss(tf.keras.losses.Loss):
     def __init__(self):
@@ -181,9 +177,6 @@ class CustomLoss(tf.keras.losses.Loss):
         denominator = tf.reduce_sum(y_true + y_pred)+1
 
         return 1 - numerator / denominator
-        
-
-    
 
 def ML_main(train_folder,valid_folder, mask_folder, mask_folder_val ):
 
@@ -267,7 +260,7 @@ def ML_main(train_folder,valid_folder, mask_folder, mask_folder_val ):
     # for i in range(max_show):
     #    plotPred(imgs[i], np.argmax(segs[i], axis=-1), np.argmax(pred[i], axis=-1))
 
-def ML_main_dice(train_folder,valid_folder, mask_folder, mask_folder_val ):
+def ML_main_dice(train_folder,valid_folder, mask_folder, mask_folder_val):
 
     num_training_samples = len(os.listdir(train_folder))#len(os.listdir(train_folder+'/images'))
     num_valid_samples = len(os.listdir(train_folder))#len(os.listdir(valid_folder+'/images'))
@@ -277,23 +270,18 @@ def ML_main_dice(train_folder,valid_folder, mask_folder, mask_folder_val ):
     train_gen = ml.DataGenerator(train_folder, mask_folder, train=True)
     val_gen = ml.DataGenerator(valid_folder, mask_folder_val, train=True)
 
-    imgs, segs = next(train_gen)
-
-    # plotMaskedImage(imgs[5], segs[5])
-
-    model = ml.Unet()
+    # model = ml.DeepLabV3plus()
+    model = tf.keras.models.load_model('model_1.hdf5', custom_objects={'call':CustomLoss.call}) ####### RESTART TRAINING FROM CHECKPOINT #######
     model.summary()
-
-    model.compile(
-        optimizer=Adam(learning_rate=1e-5),
-        loss=CustomLoss(),
-        metrics=[dice_loss, 'categorical_crossentropy', 'acc'],
-    )
-
-    log_dir = "logs/fit/" + datetime.datetime.now().strftime("%Y%m%d-%H%M%S")
-    tensorboard_callback = tf.keras.callbacks.TensorBoard(log_dir=log_dir, histogram_freq=1, profile_batch=1)
     
-    checkpoint = ModelCheckpoint('model.hdf5', monitor='val_acc', verbose=1, save_best_only=False, mode='max')
+    dice_loss = CustomLoss()
+    model.compile(
+        optimizer=Adam(learning_rate=1e-4),
+        loss=[dice_loss.call],
+        metrics=['categorical_crossentropy', 'acc'],
+    )
+    
+    checkpoint = ModelCheckpoint('model_1.hdf5', monitor='val_acc', verbose=1, save_best_only=True, mode='max')
 
     TRAIN_STEPS = num_training_samples//ml.BATCH_SIZE+1
     VAL_STEPS = num_valid_samples//ml.BATCH_SIZE+1
@@ -303,21 +291,21 @@ def ML_main_dice(train_folder,valid_folder, mask_folder, mask_folder_val ):
         validation_data=val_gen,
         epochs=ml.EPOCHS1,
         steps_per_epoch=TRAIN_STEPS,
-        callbacks=[tensorboard_callback, checkpoint], #checkpoint,
-        #workers=24,
+        callbacks=[checkpoint],
         verbose=1,
         shuffle=True,
         validation_steps=VAL_STEPS,
     )
 
+    model.save('/localhome/studenter/mikaellv/Project/ML/models/' + ml.model_name_1)
     sm.utils.set_trainable(model, recompile=False)
 
     model.summary()
 
     model.compile(
-        optimizer=Adam(learning_rate=0.000001),
-        loss=CustomLoss(),
-        metrics=[dice_loss,'categorical_crossentropy', 'acc'],
+        optimizer=Adam(learning_rate=1e-5),
+        loss=[dice_loss.call],  
+        metrics=['categorical_crossentropy','acc'],
     )
 
     history2 = model.fit(
@@ -325,40 +313,101 @@ def ML_main_dice(train_folder,valid_folder, mask_folder, mask_folder_val ):
         validation_data=val_gen,
         epochs=ml.EPOCHS2,
         steps_per_epoch=TRAIN_STEPS,
-        callbacks=[checkpoint, tensorboard_callback],
-        #workers=0,
+        callbacks=[checkpoint],
         verbose=1,
         shuffle=True,
         validation_steps=VAL_STEPS,
     )
 
-    model.save('/localhome/studenter/renatask/Project/ML/models/' + ml.model_name)
+    model.save('/localhome/studenter/mikaellv/Project/ML/models/' + ml.model_name_1)
 
     #ml.plot_history(history1, name='first_set')
     #ml.plot_history(history2, name='second_set')
 
-    name1 = ml.model_name +'_1.csv'
-    name2 = ml.model_name +'_2.csv'
+    name1 = ml.model_name_1 +'_1.csv'
+    name2 = ml.model_name_1 +'_2.csv'
 
     history_frame1 = pd.DataFrame(history1.history)
-    history_frame1.to_csv(f'/localhome/studenter/renatask/Project/ML/saved_dataframes/{name1}.csv')
+    history_frame1.to_csv(f'/localhome/studenter/mikaellv/Project/ML/saved_dataframes/{name1}.csv')
 
     history_frame2 = pd.DataFrame(history2.history)
-    history_frame2.to_csv(f'/localhome/studenter/renatask/Project/ML/saved_dataframes/{name2}.csv')
+    history_frame2.to_csv(f'/localhome/studenter/mikaellv/Project/ML/saved_dataframes/{name2}.csv')
 
-    # max_show = 20
-    # imgs, segs = next(val_gen)
-    # pred = model.predict(imgs)
+    ####################
+    ####################
+    ####################
+    ####################
+    ####################
+    ####################
+    ####################
+    ####################
+    ####################
+    ####################
+    ####################
+    ####################
+    ########################################################################################################################
 
-    # predictions = []
-    # segmentations = []
-    # for i in range(len(pred)):
-    #     predictions.append(np.argmax(pred[i], axis=-1))
-    #     segmentations.append(np.argmax(segs[i], axis=-1))
+    # model = ml.DeepLabV3plus()
+    # model.summary()
+    
+    # dice_loss = CustomLoss()
+    # model.compile(
+    #     optimizer=adam.Adam(learning_rate=1e-4),
+    #     loss=[dice_loss.call],
+    #     metrics=['categorical_crossentropy', 'acc'],
+    # )
+    
+    # checkpoint = ModelCheckpoint('model_2.hdf5', monitor='val_acc', verbose=1, save_best_only=True, mode='max')
 
-    # for i in range(max_show):
-    #     plotPred(imgs[i], segs[i], predictions[i])
+    # TRAIN_STEPS = num_training_samples//ml.BATCH_SIZE+1
+    # VAL_STEPS = num_valid_samples//ml.BATCH_SIZE+1
 
-    # for i in range(max_show):
-    #    plotPred(imgs[i], np.argmax(segs[i], axis=-1), np.argmax(pred[i], axis=-1))
+    # history1 = model.fit(
+    #     train_gen,
+    #     validation_data=val_gen,
+    #     epochs=ml.EPOCHS1,
+    #     steps_per_epoch=TRAIN_STEPS,
+    #     callbacks=[checkpoint],
+    #     verbose=1,
+    #     shuffle=True,
+    #     validation_steps=VAL_STEPS,
+    # )
+
+    # model.save('/localhome/studenter/mikaellv/Project/ML/models/' + ml.model_name_2)
+    # sm.utils.set_trainable(model, recompile=False)
+
+    # model.summary()
+
+    # model.compile(
+    #     optimizer=SGD(learning_rate=1e-5),
+    #     loss=[dice_loss.call],  
+    #     metrics=['categorical_crossentropy','acc'],
+    # )
+
+    # history2 = model.fit(
+    #     train_gen,
+    #     validation_data=val_gen,
+    #     epochs=ml.EPOCHS2,
+    #     steps_per_epoch=TRAIN_STEPS,
+    #     callbacks=[checkpoint],
+    #     verbose=1,
+    #     shuffle=True,
+    #     validation_steps=VAL_STEPS,
+    # )
+
+    # model.save('/localhome/studenter/mikaellv/Project/ML/models/' + ml.model_name_2)
+
+    # #ml.plot_history(history1, name='first_set')
+    # #ml.plot_history(history2, name='second_set')
+
+    # name1 = ml.model_name_2 +'_1.csv'
+    # name2 = ml.model_name_2 +'_2.csv'
+
+    # history_frame1 = pd.DataFrame(history1.history)
+    # history_frame1.to_csv(f'/localhome/studenter/mikaellv/Project/ML/saved_dataframes/{name1}.csv')
+
+    # history_frame2 = pd.DataFrame(history2.history)
+    # history_frame2.to_csv(f'/localhome/studenter/mikaellv/Project/ML/saved_dataframes/{name2}.csv')
+
+
     
