@@ -156,22 +156,10 @@ class ML_utils():
             else: plt.show()
         except Exception as e:
             print(f"[ERROR]: {e}")
-        # history_frame1 = pd.DataFrame(history.history)
-        # val_loss_fig = history_frame1.loc[:, ['loss', 'val_loss']].plot().getfigure()
-        # crossentropy_fig = history_frame1.loc[:, ['categorical_crossentropy', 'val_categorical_crossentropy']].plot().getfigure()
-        # val_acc_fig = history_frame1.loc[:, ['acc', 'val_acc']].plot().getfigure()
-        # if name:
-        #     val_loss_fig.savefig('val_loss_' + name + '.png')
-        #     crossentropy_fig.savefig('crossentropy_' + name + '.png')
-        #     val_acc_fig.savefig('val_acc_' + name + '.png')
-        # else: plt.show()
 
 class CustomLoss(tf.keras.losses.Loss):
     def __init__(self):
         super().__init__()
-
-    #def get_config(self):
-    #    return {"dice_loss": self.var.numpy()}
 
     def call(self, y_true, y_pred):
         y_true = tf.cast(y_true, tf.float32)
@@ -181,7 +169,7 @@ class CustomLoss(tf.keras.losses.Loss):
 
         return 1 - numerator / denominator
 
-def ML_main(user:str=None, train_folder, valid_folder, mask_folder, mask_folder_val, model_architecture:str='unet', train_loss='dice'):
+def ML_main(train_folder, valid_folder, mask_folder, mask_folder_val, user:str=None, model_architecture:str='unet', train_loss='dice'):
     ml = ML_utils(user=user)
 
     num_training_samples = len(os.listdir(train_folder))
@@ -204,7 +192,7 @@ def ML_main(user:str=None, train_folder, valid_folder, mask_folder, mask_folder_
         loss = 'categorical_crossentropy'
 
     model.compile(
-        optimizer=Adam(learning_rate=1e-4),
+        optimizer=adam.Adam(learning_rate=1e-4),
         loss=loss,
         metrics=['categorical_crossentropy', 'acc'],
     )
@@ -212,7 +200,7 @@ def ML_main(user:str=None, train_folder, valid_folder, mask_folder, mask_folder_
     log_dir = "logs/fit/" + datetime.datetime.now().strftime("%Y%m%d-%H%M%S")
     tensorboard_callback = tf.keras.callbacks.TensorBoard(log_dir=log_dir, histogram_freq=1)
     checkpoint = ModelCheckpoint('ML/checkpoints/model.hdf5', monitor='val_acc', verbose=1, save_best_only=False, mode='max')
-    csv_logger = CSVLogger('ML/csv_logs/'+ml.model_name+'.log')
+    csv_logger = CSVLogger('ML/csv_logs/'+ml.model_name_1+'.log')
     TRAIN_STEPS = num_training_samples//ml.BATCH_SIZE+1
     VAL_STEPS = num_valid_samples//ml.BATCH_SIZE+1
 
@@ -227,11 +215,12 @@ def ML_main(user:str=None, train_folder, valid_folder, mask_folder, mask_folder_
         validation_steps=VAL_STEPS
     )
 
+    model.save(f'/localhome/studenter/{user}/Project/ML/models/' + ml.model_name_1)
     sm.utils.set_trainable(model, recompile=False)
     model.summary()
 
     model.compile(
-        optimizer=Adam(learning_rate=1e-5),
+        optimizer=SGD(learning_rate=1e-5),
         loss=loss,
         metrics=['categorical_crossentropy', 'acc'],
     )
@@ -247,10 +236,10 @@ def ML_main(user:str=None, train_folder, valid_folder, mask_folder, mask_folder_
         validation_steps=VAL_STEPS
     )
 
-    model.save('/localhome/studenter/'+user+'/Project/ML/models/' + ml.model_name)
+    model.save('/localhome/studenter/'+user+'/Project/ML/models/' + ml.model_name_2)
 
-    name1 = ml.model_name + '_1.csv'
-    name2 = ml.model_name + '_2.csv'
+    name1 = ml.model_name_2 + '_1.csv'
+    name2 = ml.model_name_2 + '_2.csv'
     history_frame1 = pd.DataFrame(history1.history)
     history_frame1.to_csv(f'/localhome/studenter/{user}/Project/ML/saved_dataframes/{name1}.csv')
     history_frame2 = pd.DataFrame(history2.history)

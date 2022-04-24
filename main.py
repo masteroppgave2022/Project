@@ -1,35 +1,14 @@
 import os
+import json
 import logging
 import configparser
-import json
-
-#####################   ML
-from ML.ml_utils import ML_main_dice, ML_utils 
-from ML.ml_utils import ML_main
-import tensorflow as tf
-import keras as keras
-import datetime
-from keras.callbacks import ModelCheckpoint
-from tensorflow.keras.optimizers import Adam
-import segmentation_models as sm
-sm.set_framework('tf.keras')
-sm.framework()
-from data.plot_data import plotMaskedImage
-from data.plot_data import plotPred
-import data.plot_data as pd
-
-from sklearn.metrics import precision_score
-from sklearn.metrics import recall_score
-from sklearn.metrics import confusion_matrix
-from sklearn.metrics import f1_score
-
 import numpy as np
-
 import seaborn as sns
+#####################   ML 
+from ML.ml_utils import ML_main
 
 """ Log progress """
 logging.basicConfig(filename='main_log.log', encoding='utf-8', level=logging.INFO, format='%(asctime)s %(levelname)s: %(message)s',  datefmt='%m/%d/%Y %H:%M:%S')
-
 """
 Initiate parser for main_config.ini 
 
@@ -176,12 +155,14 @@ if parser_main.getboolean('main','ML'):
     test_masks = 'data/datasets/' + dataset + '/test/masks'
 
     if parser_main.getboolean('ML','train'):
-        num_train_samples = len([img for img in os.listdir(train_images) if not img.startswith('.')]) # Exclude hidden files starting with '.'
-        num_val_samples = len([img for img in os.listdir(train_masks) if not img.startswith('.')])
-
-        #ML_main(train_images, val_images, train_masks, val_masks)
-        ML_main_dice(train_images, val_images, train_masks, val_masks)
-        
+        ML_main(train_folder=train_images,
+            valid_folder=val_images,
+            mask_folder=train_masks,
+            mask_folder_val=val_masks,
+            user='mikaellv',
+            model_architecture='deeplab',
+            train_loss='dice')
+          
     if parser_main.getboolean('ML','val'):
         ml = ML_utils()
 
