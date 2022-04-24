@@ -1,27 +1,31 @@
-import matplotlib.pyplot as plt
-import numpy as np
-import tensorflow as tf
-import pandas as pd
-import segmentation_models as sm
-sm.set_framework('tf.keras')
-sm.framework()
+import os
+import math
 import rasterio
 import datetime
-import os
+import configparser
+import numpy as np
+import pandas as pd
 import seaborn as sns
-from keras.callbacks import ModelCheckpoint
+import albumentations as A
+from skimage import exposure
+import matplotlib.pyplot as plt
+
+import tensorflow as tf
+from keras.callbacks import ModelCheckpoint, CSVLogger
 from tensorflow.keras.optimizers import Adam
 from tensorflow.python.keras.optimizer_v2 import adam
 from tensorflow.python.keras.optimizer_v2.gradient_descent import SGD
-import configparser
+
 import ML.DeepLabV3Plus.deeplabv3plus as dl
-from skimage import exposure
-import albumentations as A
+import segmentation_models as sm
+sm.set_framework('tf.keras')
+sm.framework()
 
 class ML_utils():
-    def __init__(self) -> None:
+    def __init__(self, user:str=None) -> None:
+        self.user = user
         self.parser_ml = configparser.ConfigParser()
-        self.parser_ml.read('/localhome/studenter/mikaellv/Project/ML/ml_config.ini')
+        self.parser_ml.read('/localhome/studenter/'+self.user+'/Project/ML/ml_config.ini')
 
         self.model_name_1 = self.parser_ml['model']['NAME1']
         self.model_name_2 = self.parser_ml['model']['NAME2']
@@ -51,7 +55,6 @@ class ML_utils():
             rescaled_band = exposure.rescale_intensity(image[:,:,b],in_range=(p2,p98),out_range=(0,1))
             rescaled_image[:,:,b] = rescaled_band
         image = rescaled_image
-        
         return image, mask
 
     def bin_image(self, mask):
@@ -117,7 +120,13 @@ class ML_utils():
         return sample_weights
 
     def Unet(self):
-        model = sm.Unet('resnet50', classes=self.N_CLASSES, activation='softmax', encoder_weights='imagenet', input_shape=[None, None, 3], encoder_freeze=True)
+        model = sm.Unet(
+            'resnet50',
+            classes=self.N_CLASSES,
+            activation='softmax',
+            encoder_weights='imagenet',
+            input_shape=[None, None, 3],
+            encoder_freeze=True)
         return model
 
     def DeepLabV3plus(self):
@@ -155,13 +164,7 @@ class ML_utils():
         #     val_loss_fig.savefig('val_loss_' + name + '.png')
         #     crossentropy_fig.savefig('crossentropy_' + name + '.png')
         #     val_acc_fig.savefig('val_acc_' + name + '.png')
-        # else: plt.show()@
-        
-    def add_sample_weights(self, label):
-        class_weights = tf.constant([self.class_weights['not_water'],self.class_weights['water']])
-        class_weights = class_weights/tf.reduce_sum(class_weights)
-        sample_weights = tf.gather(class_weights, indices=tf.cast(label, tf.int32))
-        return sample_weights
+        # else: plt.show()
 
 class CustomLoss(tf.keras.losses.Loss):
     def __init__(self):
@@ -178,30 +181,38 @@ class CustomLoss(tf.keras.losses.Loss):
 
         return 1 - numerator / denominator
 
-def ML_main(train_folder,valid_folder, mask_folder, mask_folder_val ):
+def ML_main(user:str=None, train_folder, valid_folder, mask_folder, mask_folder_val, model_architecture:str='unet', train_loss='dice'):
+    ml = ML_utils(user=user)
 
-    num_training_samples = len(os.listdir(train_folder))#len(os.listdir(train_folder+'/images'))
-    num_valid_samples = len(os.listdir(train_folder))#len(os.listdir(valid_folder+'/images'))
-
-    ml = ML_utils()
-
+    num_training_samples = len(os.listdir(train_folder))
+    num_valid_samples = len(os.listdir(train_folder))
     train_gen = ml.DataGenerator(train_folder, mask_folder, train=True)
     val_gen = ml.DataGenerator(valid_folder, mask_folder_val, train=True)
 
-    model = ml.DeepLabV3plus()
+    if model_architecture == 'unet':
+        model = ml.Unet()
+    elif model_architecture == 'deeplab':
+        model = ml.DeepLabV3plus()
+    else:
+        raise Exception("Please provide a valid model_architecture: 'unet', 'deeplab'")
     model.summary()
 
+    if train_loss == 'dice':
+        dice_loss = CustomLoss()
+        loss = [dice_loss.call]
+    else:
+        loss = 'categorical_crossentropy'
+
     model.compile(
-        optimizer=Adam(learning_rate=1e-5),
-        loss='categorical_crossentropy',
+        optimizer=Adam(learning_rate=1e-4),
+        loss=loss,
         metrics=['categorical_crossentropy', 'acc'],
     )
 
     log_dir = "logs/fit/" + datetime.datetime.now().strftime("%Y%m%d-%H%M%S")
     tensorboard_callback = tf.keras.callbacks.TensorBoard(log_dir=log_dir, histogram_freq=1)
-    
     checkpoint = ModelCheckpoint('ML/checkpoints/model.hdf5', monitor='val_acc', verbose=1, save_best_only=False, mode='max')
-
+    csv_logger = CSVLogger('ML/csv_logs/'+ml.model_name+'.log')
     TRAIN_STEPS = num_training_samples//ml.BATCH_SIZE+1
     VAL_STEPS = num_valid_samples//ml.BATCH_SIZE+1
 
@@ -210,102 +221,19 @@ def ML_main(train_folder,valid_folder, mask_folder, mask_folder_val ):
         validation_data=val_gen,
         epochs=ml.EPOCHS1,
         steps_per_epoch=TRAIN_STEPS,
-        callbacks=[tensorboard_callback, checkpoint], #checkpoint,
-        #workers=0,
+        callbacks=[checkpoint, csv_logger],
         verbose=1,
         shuffle=True,
         validation_steps=VAL_STEPS
     )
 
-    # sm.utils.set_trainable(model, recompile=False)
-
-    # model.summary()
-
-    # model.compile(
-    #     optimizer=Adam(learning_rate=0.000001),
-    #     loss='categorical_crossentropy',
-    #     metrics=['categorical_crossentropy', 'acc'],
-    # )
-
-    # history2 = model.fit(
-    #     train_gen,
-    #     validation_data=val_gen,
-    #     epochs=ml.EPOCHS2,
-    #     steps_per_epoch=TRAIN_STEPS,
-    #     callbacks=[checkpoint, tensorboard_callback],
-    #     #workers=0,
-    #     verbose=1,
-    #     shuffle=True,
-    #     validation_steps=VAL_STEPS
-    # )
-
-    model.save('/localhome/studenter/mikaellv/Project/ML/models/' + ml.model_name)
-
-    ml.plot_history(history1, name=ml.model_name+'_1.csv')
-    # ml.plot_history(history2, name=ml.model_name+'_2.csv')
-
-    # max_show = 20
-    # imgs, segs = next(val_gen)
-    # pred = model.predict(imgs)
-
-    # predictions = []
-    # segmentations = []
-    # for i in range(len(pred)):
-    #     predictions.append(np.argmax(pred[i], axis=-1))
-    #     segmentations.append(np.argmax(segs[i], axis=-1))
-
-    # for i in range(max_show):
-    #     plotPred(imgs[i], segs[i], predictions[i])
-
-    # for i in range(max_show):
-    #    plotPred(imgs[i], np.argmax(segs[i], axis=-1), np.argmax(pred[i], axis=-1))
-
-def ML_main_dice(train_folder,valid_folder, mask_folder, mask_folder_val):
-
-    num_training_samples = len(os.listdir(train_folder))#len(os.listdir(train_folder+'/images'))
-    num_valid_samples = len(os.listdir(train_folder))#len(os.listdir(valid_folder+'/images'))
-
-    ml = ML_utils()
-
-    train_gen = ml.DataGenerator(train_folder, mask_folder, train=True)
-    val_gen = ml.DataGenerator(valid_folder, mask_folder_val, train=True)
-
-    # model = ml.DeepLabV3plus()
-    model = tf.keras.models.load_model('model_1.hdf5', custom_objects={'call':CustomLoss.call}) ####### RESTART TRAINING FROM CHECKPOINT #######
-    model.summary()
-    
-    dice_loss = CustomLoss()
-    model.compile(
-        optimizer=Adam(learning_rate=1e-4),
-        loss=[dice_loss.call],
-        metrics=['categorical_crossentropy', 'acc'],
-    )
-    
-    checkpoint = ModelCheckpoint('model_1.hdf5', monitor='val_acc', verbose=1, save_best_only=True, mode='max')
-
-    TRAIN_STEPS = num_training_samples//ml.BATCH_SIZE+1
-    VAL_STEPS = num_valid_samples//ml.BATCH_SIZE+1
-
-    history1 = model.fit(
-        train_gen,
-        validation_data=val_gen,
-        epochs=ml.EPOCHS1,
-        steps_per_epoch=TRAIN_STEPS,
-        callbacks=[checkpoint],
-        verbose=1,
-        shuffle=True,
-        validation_steps=VAL_STEPS,
-    )
-
-    model.save('/localhome/studenter/mikaellv/Project/ML/models/' + ml.model_name_1)
     sm.utils.set_trainable(model, recompile=False)
-
     model.summary()
 
     model.compile(
         optimizer=Adam(learning_rate=1e-5),
-        loss=[dice_loss.call],  
-        metrics=['categorical_crossentropy','acc'],
+        loss=loss,
+        metrics=['categorical_crossentropy', 'acc'],
     )
 
     history2 = model.fit(
@@ -313,101 +241,17 @@ def ML_main_dice(train_folder,valid_folder, mask_folder, mask_folder_val):
         validation_data=val_gen,
         epochs=ml.EPOCHS2,
         steps_per_epoch=TRAIN_STEPS,
-        callbacks=[checkpoint],
+        callbacks=[checkpoint, csv_logger],
         verbose=1,
         shuffle=True,
-        validation_steps=VAL_STEPS,
+        validation_steps=VAL_STEPS
     )
 
-    model.save('/localhome/studenter/mikaellv/Project/ML/models/' + ml.model_name_1)
+    model.save('/localhome/studenter/'+user+'/Project/ML/models/' + ml.model_name)
 
-    #ml.plot_history(history1, name='first_set')
-    #ml.plot_history(history2, name='second_set')
-
-    name1 = ml.model_name_1 +'_1.csv'
-    name2 = ml.model_name_1 +'_2.csv'
-
+    name1 = ml.model_name + '_1.csv'
+    name2 = ml.model_name + '_2.csv'
     history_frame1 = pd.DataFrame(history1.history)
-    history_frame1.to_csv(f'/localhome/studenter/mikaellv/Project/ML/saved_dataframes/{name1}.csv')
-
+    history_frame1.to_csv(f'/localhome/studenter/{user}/Project/ML/saved_dataframes/{name1}.csv')
     history_frame2 = pd.DataFrame(history2.history)
-    history_frame2.to_csv(f'/localhome/studenter/mikaellv/Project/ML/saved_dataframes/{name2}.csv')
-
-    ####################
-    ####################
-    ####################
-    ####################
-    ####################
-    ####################
-    ####################
-    ####################
-    ####################
-    ####################
-    ####################
-    ####################
-    ########################################################################################################################
-
-    # model = ml.DeepLabV3plus()
-    # model.summary()
-    
-    # dice_loss = CustomLoss()
-    # model.compile(
-    #     optimizer=adam.Adam(learning_rate=1e-4),
-    #     loss=[dice_loss.call],
-    #     metrics=['categorical_crossentropy', 'acc'],
-    # )
-    
-    # checkpoint = ModelCheckpoint('model_2.hdf5', monitor='val_acc', verbose=1, save_best_only=True, mode='max')
-
-    # TRAIN_STEPS = num_training_samples//ml.BATCH_SIZE+1
-    # VAL_STEPS = num_valid_samples//ml.BATCH_SIZE+1
-
-    # history1 = model.fit(
-    #     train_gen,
-    #     validation_data=val_gen,
-    #     epochs=ml.EPOCHS1,
-    #     steps_per_epoch=TRAIN_STEPS,
-    #     callbacks=[checkpoint],
-    #     verbose=1,
-    #     shuffle=True,
-    #     validation_steps=VAL_STEPS,
-    # )
-
-    # model.save('/localhome/studenter/mikaellv/Project/ML/models/' + ml.model_name_2)
-    # sm.utils.set_trainable(model, recompile=False)
-
-    # model.summary()
-
-    # model.compile(
-    #     optimizer=SGD(learning_rate=1e-5),
-    #     loss=[dice_loss.call],  
-    #     metrics=['categorical_crossentropy','acc'],
-    # )
-
-    # history2 = model.fit(
-    #     train_gen,
-    #     validation_data=val_gen,
-    #     epochs=ml.EPOCHS2,
-    #     steps_per_epoch=TRAIN_STEPS,
-    #     callbacks=[checkpoint],
-    #     verbose=1,
-    #     shuffle=True,
-    #     validation_steps=VAL_STEPS,
-    # )
-
-    # model.save('/localhome/studenter/mikaellv/Project/ML/models/' + ml.model_name_2)
-
-    # #ml.plot_history(history1, name='first_set')
-    # #ml.plot_history(history2, name='second_set')
-
-    # name1 = ml.model_name_2 +'_1.csv'
-    # name2 = ml.model_name_2 +'_2.csv'
-
-    # history_frame1 = pd.DataFrame(history1.history)
-    # history_frame1.to_csv(f'/localhome/studenter/mikaellv/Project/ML/saved_dataframes/{name1}.csv')
-
-    # history_frame2 = pd.DataFrame(history2.history)
-    # history_frame2.to_csv(f'/localhome/studenter/mikaellv/Project/ML/saved_dataframes/{name2}.csv')
-
-
-    
+    history_frame2.to_csv(f'/localhome/studenter/{user}/Project/ML/saved_dataframes/{name2}.csv')

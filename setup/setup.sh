@@ -3,20 +3,32 @@ user=$USER
 root_path="/localhome/studenter/${user}/"
 
 # Python installation
-PYTHON_COMMANDS=(
-    "git clone https://github.com/pyenv/pyenv.git ${root_path}" 
-    "cd /home/studenter/${user}/"
+PYTHON_COMMANDS=( 
+    "git clone https://github.com/pyenv/pyenv.git ${root_path}.pyenv" 
+    "cd /home/studenter/${user}/" 
+    "sed -Ei -e '/^([^#]|$)/ {a \ 
+    export PYENV_ROOT='${root_path}.pyenv'
+    a \ 
+    export PATH='$PYENV_ROOT/bin:$PATH'
+    a \ 
+    ' -e ':a' -e '$!{n;ba};}' ~/.profile"   
+    "echo 'eval \"$(pyenv init --path)\"' >>~/.profile"
+    ">.bashrc" 
     "echo 'export PYENV_ROOT=\"${root_path}.pyenv\"' >> ~/.bashrc" 
     "echo 'export PATH=\"\$PYENV_ROOT/bin:\$PATH\"' >> ~/.bashrc"
     "echo 'eval \"\$(pyenv init --path)\"' >> ~/.bashrc"
     "echo 'eval \"\$(pyenv init -)\"' >> ~/.bashrc"
-    "pyenv install 3.9.7"
+    "pyenv install 3.9.7" 
     "pyenv global 3.9.7"
 )
-
-for c in "${PYTHON_COMMANDS[@]}"; do
-    eval $c
-done
+if [[ -f "${root_path}.pyenv" ]]; then
+    echo "${root_path}.pyenv"
+    echo "Pyenv and Python already installed... skipping..."
+else
+    for c in "${PYTHON_COMMANDS[@]}"; do
+        eval $c
+    done
+fi
 
 python_installation=$(pyenv which python)
 echo "Pyenv Python installed: ${python_installation}"
@@ -38,7 +50,11 @@ PACKAGES=(
     "shapely"
     "pygeoif"
     "PyQt5"
-    "configparser")
+    "configparser"
+    "rasterio" 
+    "xarray" 
+    "rioxarray" 
+    "albumentations")
 
 PREFIX="python -m pip install "
 eval "python -m pip install --upgrade pip"
@@ -70,6 +86,11 @@ SNAPPY_COMMANDS=(
     "cd ${root_path}snap/bin/" 
     "./snappy-conf ${python_installation}"
 )
+if [[ -f "${root_path}esa-snap_sentinel_unix_8_0.sh" ]]; then
+    echo "Snap already downloaded and installed... skipping..."
+    exit 0
+fi
+
 for c in "${SNAPPY_COMMANDS[@]}"; do
     eval $c
 done
