@@ -11,6 +11,9 @@ from skimage import exposure
 import matplotlib.pyplot as plt
 
 import tensorflow as tf
+devices = tf.config.list_physical_devices("GPU")
+tf.config.experimental.set_memory_growth(devices[0], True)
+
 from keras.callbacks import ModelCheckpoint, CSVLogger
 from tensorflow.keras.optimizers import Adam
 from tensorflow.python.keras.optimizer_v2 import adam
@@ -192,7 +195,7 @@ def ML_main(train_folder, valid_folder, mask_folder, mask_folder_val, user:str=N
         loss = 'categorical_crossentropy'
 
     model.compile(
-        optimizer=adam.Adam(learning_rate=1e-4),
+        optimizer=adam.Adam(learning_rate=1e-4), # må endres til Adam(learning_rate=1e-4) for Unet
         loss=loss,
         metrics=['categorical_crossentropy', 'acc'],
     )
@@ -220,10 +223,12 @@ def ML_main(train_folder, valid_folder, mask_folder, mask_folder_val, user:str=N
     model.summary()
 
     model.compile(
-        optimizer=SGD(learning_rate=1e-5),
+        optimizer=adam.Adam(learning_rate=1e-5), # må endres til Adam(learning_rate=1e-5) for Unet
         loss=loss,
         metrics=['categorical_crossentropy', 'acc'],
     )
+
+    csv_logger = CSVLogger('ML/csv_logs/'+ml.model_name_1+'2.log')
 
     history2 = model.fit(
         train_gen,

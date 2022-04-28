@@ -16,7 +16,7 @@ main_config.ini is the main setup file.
 To only run parts of the program, edit main_config.ini.
 """
 parser_main = configparser.ConfigParser()
-parser_main.read('/localhome/studenter/mikaellv/Project/main_config.ini')
+parser_main.read('/localhome/studenter/renatask/Project/main_config.ini')
 root = parser_main['main']['root']
 download_path = root + 'unprocessed_downloads/'
 shapefile_path = parser_main['main']['shapefile_path']
@@ -159,7 +159,7 @@ if parser_main.getboolean('main','ML'):
             valid_folder=val_images,
             mask_folder=train_masks,
             mask_folder_val=val_masks,
-            user='mikaellv',
+            user='renatask',
             model_architecture='deeplab',
             train_loss='dice')
           
