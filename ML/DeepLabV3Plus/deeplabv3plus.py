@@ -200,8 +200,6 @@ def DeepLabv3Plus(weights=None, input_tensor=None, input_shape=(None, None, 3), 
     b4 = Activation(tf.nn.relu)(b4)
     # upsample. have to use compat because of the option align_corners
     size_before = tf.keras.backend.int_shape(x)
-    print(f"Size before: {size_before}")
-    print(f"Shape before: {shape_before[1:3]}")
     b4 = tf.keras.layers.experimental.preprocessing.Resizing(*shape_before[1:3], interpolation="bilinear")(b4)
     # simple 1x1
     b0 = Conv2D(256, (1, 1), padding='same', use_bias=False, name='aspp0')(x)

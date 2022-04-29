@@ -1,5 +1,4 @@
 import os
-import math
 import rasterio
 import datetime
 import configparser
@@ -10,14 +9,17 @@ import albumentations as A
 from skimage import exposure
 import matplotlib.pyplot as plt
 
+os.environ['CUDA_VISIBLE_DEVICES'] = '1' # Second GPU on Aulus 4
 import tensorflow as tf
 devices = tf.config.list_physical_devices("GPU")
 tf.config.experimental.set_memory_growth(devices[0], True)
 
 from keras.callbacks import ModelCheckpoint, CSVLogger
 from tensorflow.keras.optimizers import Adam
-from tensorflow.python.keras.optimizer_v2 import adam
 from tensorflow.python.keras.optimizer_v2.gradient_descent import SGD
+from tensorflow.python.keras.optimizer_v2 import adam
+from tensorflow.keras.applications import xception
+from keras.callbacks import ModelCheckpoint, CSVLogger
 
 import ML.DeepLabV3Plus.deeplabv3plus as dl
 import segmentation_models as sm
@@ -41,14 +43,10 @@ class ML_utils():
         self.class_weights = {'not_water': 1.0, 'water': 1.0}
         self.N_CLASSES=len(self.CLASSES)
 
-    def LoadImage(self, file, image_path, mask_path):
+    def LoadImage(self, file, image_path, mask_path, fetch_mask=True):
         """ Return: (h,w,n)-np.arrays """
-        # Images to np-arrays
         image_arr = rasterio.open(image_path+'/'+file).read()
-        mask_arr = rasterio.open(mask_path+'/'+file).read()
-        # Convert dimensions to standard (n,height,width) --> (height,width,n)
         image = np.rollaxis(image_arr,0,3)
-        mask = np.rollaxis(mask_arr,0,3)
         # Histogram stretch and normalize:
         bands = image.shape[-1]
         rescaled_image = np.zeros(image.shape,dtype="float32")
@@ -58,7 +56,12 @@ class ML_utils():
             rescaled_band = exposure.rescale_intensity(image[:,:,b],in_range=(p2,p98),out_range=(0,1))
             rescaled_image[:,:,b] = rescaled_band
         image = rescaled_image
-        return image, mask
+        # image = xception.preprocess_input(rescaled_image)
+        if fetch_mask:
+            mask_arr = rasterio.open(mask_path+'/'+file).read()
+            mask = np.rollaxis(mask_arr,0,3)
+            return image, mask
+        else: return image
 
     def bin_image(self, mask):
         bins = np.array([pixel_val for pixel_val in self.CLASSES.keys()])
@@ -94,10 +97,10 @@ class ML_utils():
             seg_img[:,:,1] += (segc*( colors[c][1] ))
         return(seg_img)
 
-    def DataGenerator(self, path, mask_folder, train=False):
+    def DataGenerator(self, path, mask_folder, train=False, masks=True):
         batch_size=self.BATCH_SIZE
         classes=self.N_CLASSES
-        files = [f for f in os.listdir(path) if not f.startswith('.')]
+        files = [f for f in os.listdir(path) if f.endswith('.tif')]
         while True:
             for i in range(0, len(files), batch_size):
                 batch_files = files[i : i+batch_size]
@@ -106,15 +109,19 @@ class ML_utils():
                 sample_weights=[]
                 for file in batch_files:
                     if file.startswith('.'): continue
-                    image, mask = self.LoadImage(file, path, mask_folder)
-                    if train: image, mask = self.image_augmentation(image,mask)
-                    mask_binned = self.bin_image(mask)
-                    labels = self.getSegmentationArr(mask_binned, classes)
+                    if masks: 
+                        image, mask = self.LoadImage(file,path,mask_folder,fetch_mask=True)
+                        mask_binned = self.bin_image(mask)
+                        labels = self.getSegmentationArr(mask_binned, classes)
+                        segs.append(labels)
+                    else:
+                        image = self.LoadImage(file,path,mask_folder,fetch_mask=False)
+                    if train and masks: image, mask = self.image_augmentation(image,mask)
                     imgs.append(image[:,:,0:3])
-                    segs.append(labels)
                     #sample_weights.append(self.add_sample_weights(mask))
-                if train: yield np.array(imgs), np.array(segs)
-                else: yield imgs, segs
+                if train and masks: yield np.array(imgs), np.array(segs)
+                elif masks and not train: yield imgs, segs
+                else: yield imgs
 
     def add_sample_weights(self, label):
         class_weights = tf.constant([self.class_weights['not_water'],self.class_weights['water']])
@@ -133,8 +140,9 @@ class ML_utils():
         return model
 
     def DeepLabV3plus(self):
+        # model = dl_test.DeeplabV3Plus(image_size=256,num_classes=2)
         model = dl.DeepLabv3Plus(
-            input_shape=(None, None, 3),
+            input_shape=(256, 256, 3),
             classes=self.N_CLASSES,
             backbone='xception',
             weights='cityscapes',
@@ -184,6 +192,8 @@ def ML_main(train_folder, valid_folder, mask_folder, mask_folder_val, user:str=N
         model = ml.Unet()
     elif model_architecture == 'deeplab':
         model = ml.DeepLabV3plus()
+        for layer in model.layers[:358]:
+            layer.trainable = False
     else:
         raise Exception("Please provide a valid model_architecture: 'unet', 'deeplab'")
     model.summary()
@@ -201,9 +211,8 @@ def ML_main(train_folder, valid_folder, mask_folder, mask_folder_val, user:str=N
     )
 
     log_dir = "logs/fit/" + datetime.datetime.now().strftime("%Y%m%d-%H%M%S")
-    tensorboard_callback = tf.keras.callbacks.TensorBoard(log_dir=log_dir, histogram_freq=1)
     checkpoint = ModelCheckpoint('ML/checkpoints/model.hdf5', monitor='val_acc', verbose=1, save_best_only=False, mode='max')
-    csv_logger = CSVLogger('ML/csv_logs/'+ml.model_name_1+'.log')
+    csv_logger = CSVLogger('ML/csv_logs/'+ml.model_name_1+'_1.log')
     TRAIN_STEPS = num_training_samples//ml.BATCH_SIZE+1
     VAL_STEPS = num_valid_samples//ml.BATCH_SIZE+1
 
@@ -223,12 +232,12 @@ def ML_main(train_folder, valid_folder, mask_folder, mask_folder_val, user:str=N
     model.summary()
 
     model.compile(
-        optimizer=adam.Adam(learning_rate=1e-5), # må endres til Adam(learning_rate=1e-5) for Unet
+        optimizer=adam.Adam(learning_rate=1e-5),
         loss=loss,
         metrics=['categorical_crossentropy', 'acc'],
     )
 
-    csv_logger = CSVLogger('ML/csv_logs/'+ml.model_name_1+'2.log')
+    csv_logger = CSVLogger('ML/csv_logs/'+ml.model_name_2+'_2.log')
 
     history2 = model.fit(
         train_gen,
