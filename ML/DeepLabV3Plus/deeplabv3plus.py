@@ -20,6 +20,7 @@ from tensorflow.python.keras.utils.data_utils import get_file
 from tensorflow.python.keras import backend as K
 
 WEIGHTS_PATH_X_CS = "https://github.com/bonlime/keras-deeplab-v3-plus/releases/download/1.2/deeplabv3_xception_tf_dim_ordering_tf_kernels_cityscapes.h5"
+WEIGHTS_PATH_X = "https://github.com/bonlime/keras-deeplab-v3-plus/releases/download/1.1/deeplabv3_xception_tf_dim_ordering_tf_kernels.h5"
 
 def SepConv_BN(x, filters, prefix, stride=1, kernel_size=3, rate=1, depth_activation=False, epsilon=1e-3):
     """ 
@@ -134,9 +135,9 @@ def _xception_block(inputs, depth_list, prefix, skip_connection_type, stride,
 
 def DeepLabv3Plus(weights=None, input_tensor=None, input_shape=(None, None, 3), classes=2, backbone='xception', OS=16, activation=None):
 
-    if not (weights in {'cityscapes', None}):
+    if not (weights in {'pascal_voc', 'cityscapes', None}):
         raise ValueError('The `weights` argument should be either '
-                         '`None` (random initialization) or `cityscapes` ')
+                         '`None` (random initialization) or `cityscapes` or `pascal_voc` ')
 
     if not (backbone in {'xception'}):
         raise ValueError('The `backbone` argument should be `xception` ')
@@ -246,10 +247,14 @@ def DeepLabv3Plus(weights=None, input_tensor=None, input_shape=(None, None, 3), 
                                     WEIGHTS_PATH_X_CS,
                                     cache_subdir='models')
         model.load_weights(weights_path, by_name=True)
-    
+    if weights == 'pascal_voc':
+        weights_path = get_file('deeplabv3_xception_tf_dim_ordering_tf_kernels.h5',
+                        WEIGHTS_PATH_X,
+                        cache_subdir='models')
+        model.load_weights(weights_path, by_name=True)
     return model
 
 if __name__ == '__main__':
     """ Just for testing purposes """
-    model = DeepLabv3Plus(weights='cityscapes',input_shape=(None,None,3),classes=2,backbone='xception',activation='softmax')
+    model = DeepLabv3Plus(weights='pascal_voc',input_shape=(None,None,3),classes=2,backbone='xception',activation='softmax')
     model.summary()

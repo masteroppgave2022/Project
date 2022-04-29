@@ -27,10 +27,8 @@ import pygeoif
 
 import geopandas as gpd
 import rioxarray as rxr
-import pandas as pd
 from shapely.geometry import Polygon
 import shapely
-from osgeo import ogr,osr,gdal
 
 class Preprocess():
     def __init__(self, path_to_data="") -> None:

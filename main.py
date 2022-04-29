@@ -18,10 +18,10 @@ To only run parts of the program, edit main_config.ini.
 parser_main = configparser.ConfigParser()
 parser_main.read('/localhome/studenter/renatask/Project/main_config.ini')
 root = parser_main['main']['root']
-download_path = root + 'unprocessed_downloads/'
-shapefile_path = parser_main['main']['shapefile_path']
+download_path = root + 'unprocessed_flood_test_images/'
+shapefile_path = root + 'flood_test_shapefiles/'
 subset_path = parser_main['main']['subset_path']
-save_path = parser_main['main']['save_path']
+save_path = root + 'flood_test_images/'
 
 if parser_main.getboolean('main','download'):
     """ Request and download Sentinel-1 images from from Alaska satellite facility """
@@ -99,18 +99,19 @@ if parser_main.getboolean('main','build_data'):
     """ Build dataset with processed images and masks """
     import data.build_data as bd
 
-    image_root = root + 'processed_downloads/'
+    image_root = root + 'flood_test_images/'
     tiled_images_root = root + 'tiled_images/'
     mask_root = root + 'processed_masks/'
     tiled_masks_root = root + 'tiled_masks/'
 
     # Convert SHP to GTIFF Files
-    logging.info("[INFO] Converting shapefiles to GTiff rasters ...")
-    mask_shp_paths = root + 'untiled_masks/'
-    shp_paths = [mask_shp_paths+l+'/'+l+'.shp' for l in os.listdir(shapefile_path) if not l.startswith('.')]
-    out_path = 'data/processed_masks/'
-    for shp in shp_paths:
-        bd.shp_to_gtiff(path_to_shp=shp,out_path=out_path)
+    if parser_main.getboolean('build_data','create_masks'):
+        logging.info("[INFO] Converting shapefiles to GTiff rasters ...")
+        mask_shp_paths = root + 'untiled_masks/'
+        shp_paths = [mask_shp_paths+l+'/'+l+'.shp' for l in os.listdir(shapefile_path) if not l.startswith('.')]
+        out_path = 'data/processed_masks/'
+        for shp in shp_paths:
+            bd.shp_to_gtiff(path_to_shp=shp,out_path=out_path)
 
     # Tile images
     if parser_main.getboolean('build_data','tile_images'):
@@ -159,8 +160,8 @@ if parser_main.getboolean('main','ML'):
             valid_folder=val_images,
             mask_folder=train_masks,
             mask_folder_val=val_masks,
-            user='renatask',
-            model_architecture='deeplab',
+            user='mikaellv',
+            model_architecture='restart_training',
             train_loss='dice')
           
     if parser_main.getboolean('ML','val'):

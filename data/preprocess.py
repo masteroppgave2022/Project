@@ -1,5 +1,5 @@
 import matplotlib
-matplotlib.use("Qt5Agg")
+# matplotlib.use("Qt5Agg")
 import matplotlib.pyplot as plt
 
 from preprocess_functions import Preprocess

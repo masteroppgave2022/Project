@@ -201,5 +201,7 @@ ML/predicted_images
 predictions_test
 ML/checkpoints/
 model_1.hdf5
+data/unprocessed_flood_test_images/
 ML/predictions
-data/flood_test_images
+data/flood_test_images/
+data/flood_test_shapefiles/

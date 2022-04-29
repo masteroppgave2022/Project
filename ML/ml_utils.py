@@ -11,9 +11,15 @@ import matplotlib.pyplot as plt
 
 os.environ['CUDA_VISIBLE_DEVICES'] = '1' # Second GPU on Aulus 4
 import tensorflow as tf
+<<<<<<< Updated upstream
 devices = tf.config.list_physical_devices("GPU")
 tf.config.experimental.set_memory_growth(devices[0], True)
 
+=======
+physical_devices = tf.config.list_physical_devices('GPU')
+tf.config.experimental.set_memory_growth(physical_devices[0], True)
+import keras
+>>>>>>> Stashed changes
 from keras.callbacks import ModelCheckpoint, CSVLogger
 from tensorflow.keras.optimizers import Adam
 from tensorflow.python.keras.optimizer_v2.gradient_descent import SGD
@@ -145,7 +151,7 @@ class ML_utils():
             input_shape=(256, 256, 3),
             classes=self.N_CLASSES,
             backbone='xception',
-            weights='cityscapes',
+            weights='pascal_voc',
             activation='softmax',
             )
         return model
@@ -194,8 +200,15 @@ def ML_main(train_folder, valid_folder, mask_folder, mask_folder_val, user:str=N
         model = ml.DeepLabV3plus()
         for layer in model.layers[:358]:
             layer.trainable = False
+<<<<<<< Updated upstream
+=======
+    elif model_architecture == 'restart_training':
+        model = keras.models.load_model('ML/checkpoints/model.hdf5', custom_objects={'call':[CustomLoss.call]})
+        restart_from = 26
+        ml.EPOCHS1 -= restart_from
+>>>>>>> Stashed changes
     else:
-        raise Exception("Please provide a valid model_architecture: 'unet', 'deeplab'")
+        raise Exception("Please provide a valid model_architecture: 'unet', 'deeplab', 'restart_training'")
     model.summary()
 
     if train_loss == 'dice':
@@ -205,14 +218,23 @@ def ML_main(train_folder, valid_folder, mask_folder, mask_folder_val, user:str=N
         loss = 'categorical_crossentropy'
 
     model.compile(
+<<<<<<< Updated upstream
         optimizer=adam.Adam(learning_rate=1e-4), # må endres til Adam(learning_rate=1e-4) for Unet
+=======
+        optimizer=Adam(learning_rate=1e-4),
+>>>>>>> Stashed changes
         loss=loss,
         metrics=['categorical_crossentropy', 'acc'],
     )
+    
 
     log_dir = "logs/fit/" + datetime.datetime.now().strftime("%Y%m%d-%H%M%S")
     checkpoint = ModelCheckpoint('ML/checkpoints/model.hdf5', monitor='val_acc', verbose=1, save_best_only=False, mode='max')
+<<<<<<< Updated upstream
     csv_logger = CSVLogger('ML/csv_logs/'+ml.model_name_1+'_1.log')
+=======
+    csv_logger = CSVLogger('ML/csv_logs/'+ml.model_name_1+'_2.log')
+>>>>>>> Stashed changes
     TRAIN_STEPS = num_training_samples//ml.BATCH_SIZE+1
     VAL_STEPS = num_valid_samples//ml.BATCH_SIZE+1
 
@@ -228,11 +250,17 @@ def ML_main(train_folder, valid_folder, mask_folder, mask_folder_val, user:str=N
     )
 
     model.save(f'/localhome/studenter/{user}/Project/ML/models/' + ml.model_name_1)
+    
     sm.utils.set_trainable(model, recompile=False)
+    csv_logger = CSVLogger('ML/csv_logs/'+ml.model_name_1+'_3.log')
     model.summary()
 
     model.compile(
+<<<<<<< Updated upstream
         optimizer=adam.Adam(learning_rate=1e-5),
+=======
+        optimizer=Adam(learning_rate=1e-5),
+>>>>>>> Stashed changes
         loss=loss,
         metrics=['categorical_crossentropy', 'acc'],
     )
