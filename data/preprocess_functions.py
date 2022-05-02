@@ -145,7 +145,7 @@ class Preprocess():
         parameters = HashMap() 
         parameters.put('saveSelectedSourceBand', True)
         parameters.put('demName', 'External DEM')
-        parameters.put('externalDEMFile', '/localhome/studenter/mikaellv/Project/data/DEM_merge/DEM_merge.tif')
+        parameters.put('externalDEMFile', '/localhome/studenter/renatask/Project/data/DEM_merge/DEM_merge.tif')
         parameters.put('pixelSpacingInMeter', 10.0)
         parameters.put('nodataValueAtSea', False)
         terrain_corrected = GPF.createProduct("Terrain-Correction", parameters, product)
@@ -154,7 +154,7 @@ class Preprocess():
     def add_elevation_band(self, product):
         parameters = HashMap()
         parameters.put('demName', 'External DEM')
-        parameters.put('externalDEMFile', '/localhome/studenter/mikaellv/Project/data/DEM_merge/DEM_merge.tif')
+        parameters.put('externalDEMFile', '/localhome/studenter/renatask/Project/data/DEM_merge/DEM_merge.tif')
         added_elevation = GPF.createProduct("AddElevation", parameters, product)
         return added_elevation
     

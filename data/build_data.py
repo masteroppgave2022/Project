@@ -71,7 +71,11 @@ def tile_write(image_path,output_path,size=(256,256),test_data=False,test_name:s
                 output_filename = 'tile_{}-{}.tif'
                 outpath = os.path.join(output_path,output_filename.format(int(window.col_off), int(window.row_off)))
             with rasterio.open(outpath, 'w', **meta) as outds:
-                outds.write(image.read(window=window))
+                try:
+                    outds.write(image.read(window=window))
+                except:
+                    print(f"Write error for: Outpath: {outpath}")
+                    a = input("Continue? [y]")
 
 def get_paths_to_data(path_to_images:str, path_to_masks:str, test_regions:list):
     img_tile_root = 'data/tiled_images/'

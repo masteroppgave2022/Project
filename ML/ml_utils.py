@@ -57,7 +57,7 @@ class ML_utils():
         image = rescaled_image
         # image = xception.preprocess_input(rescaled_image)
         if fetch_mask:
-            mask_arr = rasterio.open(mask_path+'/'+file).read()
+            mask_arr = rasterio.open(mask_path+'/'+f"{file.split('_S1')[0]}.tif").read()
             mask = np.rollaxis(mask_arr,0,3)
             return image, mask
         else: return image

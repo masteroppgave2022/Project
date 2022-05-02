@@ -16,12 +16,12 @@ main_config.ini is the main setup file.
 To only run parts of the program, edit main_config.ini.
 """
 parser_main = configparser.ConfigParser()
-parser_main.read('/localhome/studenter/renatask/Project/main_config.ini')
+parser_main.read('/localhome/studenter/mikaellv/Project/main_config.ini')
 root = parser_main['main']['root']
-download_path = root + 'unprocessed_flood_test_images/'
-shapefile_path = root + 'flood_test_shapefiles/'
+download_path = root + 'unprocessed_downloads/'
+shapefile_path = root + 'shapefiles/'
 subset_path = parser_main['main']['subset_path']
-save_path = root + 'flood_test_images/'
+save_path = root + 'processed_downloads/'
 
 if parser_main.getboolean('main','download'):
     """ Request and download Sentinel-1 images from from Alaska satellite facility """
@@ -99,7 +99,7 @@ if parser_main.getboolean('main','build_data'):
     """ Build dataset with processed images and masks """
     import data.build_data as bd
 
-    image_root = root + 'flood_test_images/'
+    image_root = root + 'processed_downloads/'
     tiled_images_root = root + 'tiled_images/'
     mask_root = root + 'processed_masks/'
     tiled_masks_root = root + 'tiled_masks/'
