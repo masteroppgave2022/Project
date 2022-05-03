@@ -123,7 +123,7 @@ class requestDownload(searchConstants):
         print(f"[INFO] Search complete, images found: {len(results)}.")
         metadata = results.geojson()
         # Check for duplicates in search results
-        existing_rasters = [os.path.split(f)[1] for f in os.listdir('data/unprocessed_downloads/')]
+        existing_rasters = [os.path.split(f)[1] for f in os.listdir('data/unprocessed_flood_test_images/')]
         scenes_to_download = []
         for result in metadata['features']:
             r = result['properties']['fileName']
@@ -139,7 +139,7 @@ class requestDownload(searchConstants):
         metadata = results.geojson()
         print(f"Downloading the following results:\n{metadata}")
         results.download(
-        path='data/unprocessed_downloads/',
+        path='data/unprocessed_flood_test_images/',
         session=self.session,
         processes=1
         )

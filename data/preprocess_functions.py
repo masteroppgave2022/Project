@@ -8,7 +8,7 @@ import sre_parse
 import numpy as np
 import geopandas as gpd
 import matplotlib
-matplotlib.use("Qt5Agg")
+# matplotlib.use("Qt5Agg")
 import matplotlib.pyplot as plt 
 import matplotlib.colors as colors 
 import os
@@ -27,10 +27,8 @@ import pygeoif
 
 import geopandas as gpd
 import rioxarray as rxr
-import pandas as pd
 from shapely.geometry import Polygon
 import shapely
-from osgeo import ogr,osr,gdal
 
 class Preprocess():
     def __init__(self, path_to_data="") -> None:

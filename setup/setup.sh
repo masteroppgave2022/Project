@@ -54,7 +54,8 @@ PACKAGES=(
     "rasterio" 
     "xarray" 
     "rioxarray" 
-    "albumentations")
+    "albumentations" 
+    "pygeos")
 
 PREFIX="python -m pip install "
 eval "python -m pip install --upgrade pip"
@@ -83,8 +84,10 @@ SNAPPY_COMMANDS=(
     "export JAVA_HOME=\${javac_installation}" 
     "python setup.py build maven bdist_wheel" 
     "cp dist/*.whl /home/studenter/${user}/.snap/snap-python/snappy" 
-    "cd ${root_path}snap/bin/" 
-    "./snappy-conf ${python_installation}"
+    "cd /home/studenter/${user}/snap/bin/" 
+    "./snappy-conf ${python_installation}" 
+    "cd /home/studenter/${user}/.snap/snap-python/snappy/" 
+    "${python_installation} setup.py install"
 )
 if [[ -f "${root_path}esa-snap_sentinel_unix_8_0.sh" ]]; then
     echo "Snap already downloaded and installed... skipping..."

@@ -67,12 +67,15 @@ def tile_write(image_path,output_path,size=(256,256),test_data=False,test_name:s
             if test_data:
                 output_filename = test_name + '.tif'
                 outpath = os.path.join(output_path,output_filename)
-                print(outpath)
             else:
                 output_filename = 'tile_{}-{}.tif'
                 outpath = os.path.join(output_path,output_filename.format(int(window.col_off), int(window.row_off)))
             with rasterio.open(outpath, 'w', **meta) as outds:
-                outds.write(image.read(window=window))
+                try:
+                    outds.write(image.read(window=window))
+                except:
+                    print(f"Write error for: Outpath: {outpath}")
+                    a = input("Continue? [y]")
 
 def get_paths_to_data(path_to_images:str, path_to_masks:str, test_regions:list):
     img_tile_root = 'data/tiled_images/'
@@ -102,9 +105,7 @@ def get_tensor_compatible_shape(path_to_image:str):
     (current_height, current_width) = image.shape[1:]
     height = int(current_height - (current_height % 32))
     width = int(current_width - (current_width % 32))
-    minimum_dim = np.min((height, width))
-    return (minimum_dim,minimum_dim)
-
+    return (height,width)
 
 def build_dataset(
     destination_path:str,
@@ -163,13 +164,15 @@ def build_dataset(
     for mask in val_masks:
         shutil.copyfile(mask,val_masks_path+str(count)+extension)
         count += 1
-    count = 1
     for img in test_imgs:
+        name = os.path.split(img)[1].split('.')[0]
         size = get_tensor_compatible_shape(img)
-        tile_write(img,test_imgs_path,size=size,test_data=True,test_name=str(count))
-        count += 1
-    count = 1
+        tile_write(img,test_imgs_path,size=size,test_data=True,test_name=name)
+        # Tile test images for inference on 256x256 tiles as well
+        tile_path = f'{test_imgs_path}{name}/'
+        os.makedirs(tile_path)
+        tile_write(img,tile_path,size=(256,256))
     for mask in test_masks:
+        name = os.path.split(mask)[1].split('.')[0]
         size = get_tensor_compatible_shape(mask)
-        tile_write(mask,test_masks_path,size=size,test_data=True,test_name=str(count))
-        count += 1
+        tile_write(mask,test_masks_path,size=size,test_data=True,test_name=name)
